@@ -702,6 +702,7 @@ lval eval_symbol_macrolet(lval * f, lval ex) {
     } NE = U;
     return eval_body(g, cdr(ex));
 }
+
 lval eval_setq(lval * f, lval ex) {
     lval r;
     do {
@@ -711,6 +712,7 @@ lval eval_setq(lval * f, lval ex) {
     } while (ex);
     return r;
 }
+
 lval eval_function(lval * f, lval ex) {
     lval x;
     ex = car(ex);
@@ -1528,13 +1530,16 @@ lval is(lval * g, lval p, lval s) {
         m = o2a(o2a(p)[i])[2 + h];
         for (; m; m = cdr(m)) {
             lval y = car(m);
-            if (string_equal(o2a(y)[2], s))
+            if (string_equal(o2a(y)[2], s)) {
                 return o2a(y)[7] ? y : 0;
+            }
         }
     }
     m = ma(g, 9, 20, s, 0, 8, 8, 8, -8, 16, p, 0);
-    if (p == kwp)
+    if (p == kwp) {
         o2a(m)[4] = m;
+    }
+
     o2a(o2a(p)[3])[2 + h] = cons(g, m, o2a(o2a(p)[3])[2 + h]);
     return m;
 }
@@ -1618,62 +1623,6 @@ lval mkp(lval * f, const char *s0, const char *s1) {
           l2(f, strf(f, s0), strf(f, s1)), mkv(f), mkv(f), 0, 0, 0);
 }
 
-#if 0
-lval fr(lval * o, lval * p, lval * s, lval * c, lval * b, lval x)
-{
-    int t;
-    if (!(x & 3))
-        return x;
-    t = (x >> 30) & 3;
-    x &= 0x3fffffff;
-    switch (t) {
-    case 0:
-        return sp(x) ? (lval) o + x : (lval) b + x;
-    case 1:
-        return c[x / 4];
-    case 2:
-        return s[x / 4];
-    default:
-        return p[x / 4];
-    }
-}
-
-X lval fasr(lval * f, lval * p, int pz, lval * s, lval * sp, int sz, lval * c,
-         int cz, lval * v, int vz, lval * o, int oz, lval ** rv, lval ** ro)
-{
-    lval *x, *y;
-    int i, l, j;
-    lval pc, nc;
-    y = ma0(f, oz - 2);
-    memcpy(y, o, 4 * oz);
-    for (i = 0; i < pz; i++)
-        for (pc = o2a(symi[81].sym)[4]; pc; pc = cdr(pc))
-            for (nc = o2a(car(pc))[2]; nc; nc = cdr(nc))
-                if (string_equal(car(nc), s2o(y + p[i]))) {
-                    p[i] = car(pc);
-                    break;
-                }
-    for (i = 0; i < sz; i++)
-        s[i] = is(f, p[sp[i]], s2o(y + s[i]));
-    for (i = 0; i < cz; i++)
-        c[i] = o2a(s[c[i]])[3];
-    x = ma0(f, vz - 2);
-    memcpy(x, v, 4 * vz);
-    for (i = 0; i < vz; i += ((l + 3) & ~1))
-        if (x[i + 1] & 4) {
-            l = x[i] >> 8;
-            x[i + 1] = fr(y, p, s, c, x, x[i + 1] - 4) + 4;
-            for (j = 0; j < l; j++)
-                x[i + j + 2] = fr(y, p, s, c, x, x[i + j + 2]);
-        } else {
-            l = 0;
-            x[i] = fr(y, p, s, c, x, x[i]);
-            x[i + 1] = fr(y, p, s, c, x, x[i + 1]);
-        } *rv = x;
-    *ro = y;
-}
-#endif
-
 #ifdef _WIN32
 lval lrp(lval * f, lval * h)
 {
@@ -1690,16 +1639,18 @@ lval lrp(lval * f, lval * h) {
     pid_t p;
     int r;
     p = fork();
-    if (p)
+    if (p) {
         waitpid(p, &r, 0);
-    else {
+    } else {
         int i = 0;
         char **v = malloc((h - f - 1) * sizeof(char *));
-        for (; i < h - f - 2; i++)
+        for (; i < h - f - 2; i++) {
             v[i] = o2z(f[i + 2]);
+        }
         v[i] = 0;
         execv(o2z(f[1]), v);
-    } return d2o(f, r);
+    }
+    return d2o(f, r);
 }
 #endif
 
@@ -1737,8 +1688,7 @@ struct symbol_init symi[] = {
     {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, {"EXIT", lexit, 0}, {"QUIT", lexit, 0}
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     lval *g;
     int i;
     lval sym;
@@ -1754,14 +1704,17 @@ int main(int argc, char *argv[])
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
         sym = is(g, pkg, strf(g, symi[i].name));
-        if (i < 10)
+        if (i < 10) {
             o2a(sym)[4] = sym;
+        }
         ins = stdin;
         symi[i].sym = sym;
-        if (symi[i].fun)
+        if (symi[i].fun) {
             o2a(sym)[5] = ma(g, 5, 212, ms(g, 3, 212, symi[i].fun, 0, -1), 0, 0, 0, sym);
-        if (symi[i].setfun)
+        }
+        if (symi[i].setfun) {
             o2a(sym)[6] = ma(g, 5, 212, ms(g, 3, 212, symi[i].setfun, 0, -1), 8, 0, 0, sym);
+        }
         o2a(sym)[7] = i << 3;
     }
     kwp = mkp(g, "", "KEYWORD");
