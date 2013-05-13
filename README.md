@@ -7,4 +7,4 @@ The main goal is to make interpreter embeddable and multiple context-oriented.
 ## How to start
 cd src
 make
-rlwrap ./lisp800 init800.lisp
+rlwrap target/lisp800 init800.lisp

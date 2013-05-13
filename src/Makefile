@@ -1,8 +1,19 @@
-lisp800 : lisp800.o
-	gcc -lm -ldl -o lisp800 lisp800.o
+CFLAGS  = -Wall
+CC      = gcc
+LFLAGS  = -lm -ldl
+LINKER  = gcc
 
-lisp800.o : lisp800.c
-	cc -c lisp800.c
 
-clean :
-	rm lisp800 lisp800.o
+## Rules
+
+target/lisp800: target/lisp800.o
+	$(LINKER) $(LFLAGS) -o target/lisp800 target/lisp800.o
+
+target/lisp800.o: target lisp800.c
+	$(CC) $(CFLAGS) -c lisp800.c -o target/lisp800.o
+
+target:
+	mkdir target
+
+clean:
+	rm -rf target
