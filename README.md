@@ -5,6 +5,8 @@ lisp800 is based on Teemu Kalvas's lisp500. Lisp800 is an attempt to clean up th
 The main goal is to make interpreter embeddable and multiple context-oriented.
 
 ## How to start
-cd src
-make
-rlwrap target/lisp800 init800.lisp
+```
+  cd src
+  make
+  rlwrap target/lisp800 init800.lisp
+```
