@@ -27,6 +27,10 @@
 #include <sys/utsname.h>
 #endif
 
+#ifndef countof
+#define countof(x) (sizeof(x)/sizeof((x)[0]))
+#endif
+
 typedef int lval;
 
 lval *o2c(lval o) {
@@ -131,7 +135,7 @@ lval set_cdr(lval c, lval val) {
 
 lval *binding(lval * f, lval sym, int type, int *macro) {
     lval env;
-st:
+    st:
     for (env = E; env; env = cdr(env)) {
         lval e = caar(env);
         if (type || cp(e) ? car(e) == sym && (cdr(e) >> 4) == type : e == sym) {
@@ -140,8 +144,10 @@ st:
             return o2c(car(env)) + 1;
         }
     }
-    if (macro)
+    if (macro) {
         *macro = (o2a(sym)[8] >> type) & 32;
+    }
+
     if (type > 2) {
         dbgr(f, type, sym, &sym);
         goto st;
@@ -199,8 +205,9 @@ lval gc(lval * f) {
     gcm(pkgs);
     gcm(dyns);
     for (; f > stack; f--) {
-        if ((*f & 3) && (*f < memory || *f > memory + memory_size / 4))
+        if ((*f & 3) && (*f < memory || *f > memory + memory_size / 4)) {
             printf("%x\n", *f);
+        }
         gcm(*f);
     }
     memf = 0;
@@ -257,7 +264,8 @@ lval *m0(lval * g, int n) {
 
 lval *ma0(lval * g, int n) {
     lval *m;
-st:    m = m0(g, n + 2);
+    st:
+    m = m0(g, n + 2);
     if (!m) {
         gc(g);
         goto st;
@@ -267,7 +275,8 @@ st:    m = m0(g, n + 2);
 
 lval *ms0(lval * g, int n) {
     lval *m;
-st:    m = m0(g, (n + 12) / 4);
+    st:
+    m = m0(g, (n + 12) / 4);
     if (!m) {
         gc(g);
         goto st;
@@ -277,7 +286,8 @@ st:    m = m0(g, (n + 12) / 4);
 
 lval *mb0(lval * g, int n) {
     lval *m;
-st:    m = m0(g, (n + 95) / 32);
+    st:
+    m = m0(g, (n + 95) / 32);
     if (!m) {
         gc(g);
         goto st;
@@ -289,7 +299,8 @@ X lval ma(lval * g, int n,...) {
     va_list v;
     int i;
     lval *m;
-st:    va_start(v, n);
+    st:
+    va_start(v, n);
     m = m0(g, n + 2);
     if (!m) {
         for (i = -1; i < n; i++)
@@ -298,8 +309,9 @@ st:    va_start(v, n);
         goto st;
     }
     *m = n << 8;
-    for (i = -1; i < n; i++)
+    for (i = -1; i < n; i++) {
         m[2 + i] = va_arg(v, lval);
+    }
     return a2o(m);
 }
 
@@ -307,7 +319,8 @@ X lval ms(lval * g, int n,...) {
     va_list v;
     int i;
     lval *m;
-st:    va_start(v, n);
+    st:
+    va_start(v, n);
     m = m0(g, n + 2);
     if (!m) {
         gc(g);
@@ -325,8 +338,10 @@ double o2d(lval o) {
 lval d2o(lval * g, double d) {
     lval x = (lval) d << 5 | 16;
     lval *a;
-    if (o2d(x) == d)
+    if (o2d(x) == d) {
         return x;
+    }
+
     a = ma0(g, 2);
     a[1] = 84;
     *(double *) (a + 2) = d;
@@ -404,7 +419,9 @@ lval args(lval * f, lval m, int c) {
     lval *h = f + c + 2;
     int t;
     lval k, *l;
-st:    t = 0;
+
+    st:
+    t = 0;
     while (cp(m)) {
         lval n = car(m);
         m = cdr(m);
@@ -697,7 +714,7 @@ lval eval_setq(lval * f, lval ex) {
 lval eval_function(lval * f, lval ex) {
     lval x;
     ex = car(ex);
-    if (cp(ex))
+    if (cp(ex)) {
         if (car(ex) == symi[75].sym) {
             lval n = 0;
             x = cddr(ex);
@@ -707,17 +724,21 @@ lval eval_function(lval * f, lval ex) {
                 x = cddr(x);
             }
             return ma(f, 5, 212, ms(f, 3, 212, infn, 0, -1), E, cadr(ex), x, n);
-        } else
+        } else {
             x = *binding(f, cadr(ex), 2, 0);
-    else
+        }
+    } else {
         x = *binding(f, ex, 1, 0);
-    if (x != 8)
+    }
+    if (x != 8) {
         return x;
+    }
+
     dbgr(f, 1, ex, &x);
     return x;
 }
-lval eval_tagbody(lval * f, lval ex)
-{
+
+lval eval_tagbody(lval * f, lval ex) {
     jmp_buf jmp;
     lval tag;
     lval e;
@@ -1310,6 +1331,11 @@ lval lprint(lval * f) {
     return f[1];
 }
 
+lval lexit(lval * f) {
+    exit(0);
+    return 0;
+}
+
 int ep(lval * g, lval expr) {
     int i;
     lval v = rvalues(g, eval(g, expr));
@@ -1677,53 +1703,6 @@ lval lrp(lval * f, lval * h) {
 }
 #endif
 
-int main(int argc, char *argv[])
-{
-    lval *g;
-    int i;
-    lval sym;
-    memory_size = 4 * 2048 * 1024;
-    memory = malloc(memory_size);
-    memf = memory;
-    memset(memory, 0, memory_size);
-    memf[0] = 0;
-    memf[1] = memory_size / 4;
-    stack = malloc(256 * 1024);
-    memset(stack, 0, 256 * 1024);
-    g = stack + 5;
-    pkg = mkp(g, "CL", "COMMON-LISP");
-    for (i = 0; i < 88; i++) {
-        sym = is(g, pkg, strf(g, symi[i].name));
-        if (i < 10)
-            o2a(sym)[4] = sym;
-        ins = stdin;
-        symi[i].sym = sym;
-        if (symi[i].fun)
-            o2a(sym)[5] = ma(g, 5, 212, ms(g, 3, 212, symi[i].fun, 0, -1), 0, 0, 0, sym);
-        if (symi[i].setfun)
-            o2a(sym)[6] = ma(g, 5, 212, ms(g, 3, 212, symi[i].setfun, 0, -1), 8, 0, 0, sym);
-        o2a(sym)[7] = i << 3;
-    }
-    kwp = mkp(g, "", "KEYWORD");
-    o2a(symi[81].sym)[4] = pkgs = l2(g, kwp, pkg);
-#ifdef _WIN32
-    o2a(symi[78].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_INPUT_HANDLE), 0, 0);
-    o2a(symi[79].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_OUTPUT_HANDLE), TRUE, 0);
-    o2a(symi[80].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_ERROR_HANDLE), TRUE, 0);
-#else
-    o2a(symi[78].sym)[4] = ms(g, 3, 116, 1, 0, 0, 0);
-    o2a(symi[79].sym)[4] = ms(g, 3, 116, 1, 1, TRUE, 0);
-    o2a(symi[80].sym)[4] = ms(g, 3, 116, 1, 2, TRUE, 0);
-#endif
-    for (i = 1; i < argc; i++)
-        load(g, argv[i]);
-    setjmp(top_jmp);
-    do
-        printf("? ");
-    while (ep(g, lread(g)));
-    return 0;
-}
-
 struct symbol_init symi[] = {
     {"NIL"}, {"T"}, {"&REST"}, {"&BODY"},
     {"&OPTIONAL"}, {"&KEY"}, {"&WHOLE"}, {"&ENVIRONMENT"}, {"&AUX"},
@@ -1755,5 +1734,52 @@ struct symbol_init symi[] = {
     {"CHAR-CODE", lchar_code, 1}, {"*STANDARD-INPUT*"}, {"*STANDARD-OUTPUT*"},
     {"*ERROR-OUTPUT*"}, {"*PACKAGES*"}, {"STRING=", lstring_equal, 2},
     {"IMAKUNBOUND", limakunbound, 2}, {"EVAL", leval, -2}, {"JREF", ljref, 2, setfjref, 3},
-    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}
+    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, {"EXIT", lexit, 0}, {"QUIT", lexit, 0}
 };
+
+int main(int argc, char *argv[])
+{
+    lval *g;
+    int i;
+    lval sym;
+    memory_size = 4 * 2048 * 1024;
+    memory = malloc(memory_size);
+    memf = memory;
+    memset(memory, 0, memory_size);
+    memf[0] = 0;
+    memf[1] = memory_size / 4;
+    stack = malloc(256 * 1024);
+    memset(stack, 0, 256 * 1024);
+    g = stack + 5;
+    pkg = mkp(g, "CL", "COMMON-LISP");
+    for (i = 0; i < countof(symi); i++) {
+        sym = is(g, pkg, strf(g, symi[i].name));
+        if (i < 10)
+            o2a(sym)[4] = sym;
+        ins = stdin;
+        symi[i].sym = sym;
+        if (symi[i].fun)
+            o2a(sym)[5] = ma(g, 5, 212, ms(g, 3, 212, symi[i].fun, 0, -1), 0, 0, 0, sym);
+        if (symi[i].setfun)
+            o2a(sym)[6] = ma(g, 5, 212, ms(g, 3, 212, symi[i].setfun, 0, -1), 8, 0, 0, sym);
+        o2a(sym)[7] = i << 3;
+    }
+    kwp = mkp(g, "", "KEYWORD");
+    o2a(symi[81].sym)[4] = pkgs = l2(g, kwp, pkg);
+#ifdef _WIN32
+    o2a(symi[78].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_INPUT_HANDLE), 0, 0);
+    o2a(symi[79].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_OUTPUT_HANDLE), TRUE, 0);
+    o2a(symi[80].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_ERROR_HANDLE), TRUE, 0);
+#else
+    o2a(symi[78].sym)[4] = ms(g, 3, 116, 1, 0, 0, 0);
+    o2a(symi[79].sym)[4] = ms(g, 3, 116, 1, 1, TRUE, 0);
+    o2a(symi[80].sym)[4] = ms(g, 3, 116, 1, 2, TRUE, 0);
+#endif
+    for (i = 1; i < argc; i++)
+        load(g, argv[i]);
+    setjmp(top_jmp);
+    do
+        printf("? ");
+    while (ep(g, lread(g)));
+    return 0;
+}
