@@ -779,7 +779,7 @@
 (defun symbolp (object) (or (null object) (eq (type-of object) 'symbol)))
 (defun keywordp (object)
   (and (symbolp object)
-       (string= (package-name (symbol-package object)) "KEYwORD")))
+       (string= (package-name (symbol-package object)) "KEYWORD")))
 (defun make-symbol (name)
   (let ((symbol (makei 9 0 name nil nil nil nil (- 1) 0)))
     (imakunbound symbol 4)
