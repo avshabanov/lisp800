@@ -1694,8 +1694,9 @@ lval mkv(lval * f) {
     int i = 2;
     lval *r = ma0(f, 1021);
     r[1] = 116;
-    while (i < 1023)
+    while (i < 1023) {
         r[i++] = 0;
+    }
     return a2o(r);
 }
 
@@ -1801,7 +1802,7 @@ int main(int argc, char *argv[]) {
         }
         o2a(sym)[7] = i << 3;
     }
-    kwp = mkp(g, "", "KEYWORD");
+    kwp = mkp(g, "KEYWORD", "");
     o2a(symi[81].sym)[4] = pkgs = l2(g, kwp, pkg);
 #ifdef _WIN32
     o2a(symi[78].sym)[4] = ms(g, 3, 116, 1, GetStdHandle(STD_INPUT_HANDLE), 0, 0);
@@ -1812,11 +1813,12 @@ int main(int argc, char *argv[]) {
     o2a(symi[79].sym)[4] = ms(g, 3, 116, 1, 1, TRUE, 0);
     o2a(symi[80].sym)[4] = ms(g, 3, 116, 1, 2, TRUE, 0);
 #endif
-    for (i = 1; i < argc; i++)
+    for (i = 1; i < argc; i++) {
         load(g, argv[i]);
+    }
     setjmp(top_jmp);
-    do
+    do {
         printf("? ");
-    while (ep(g, lread(g)));
+    } while (ep(g, lread(g)));
     return 0;
 }
