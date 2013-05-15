@@ -1,6 +1,6 @@
-CFLAGS  = -g -Wall -O0
+CFLAGS  = -m32 -g -Wall -O0
 CC      = gcc
-LFLAGS  = -g -lm -ldl
+LFLAGS  = -m32 -g -lm -ldl
 LINKER  = gcc
 
 

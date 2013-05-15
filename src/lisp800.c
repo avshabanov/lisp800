@@ -1334,16 +1334,19 @@ void print(lval x) {
     int i;
     switch (x & 3) {
     case 0:
-        if (x)
-            if (x & 8)
-                if (x >> 5 < 256 && isgraph(x >> 5))
+        if (x) {
+            if (x & 8) {
+                if (x >> 5 < 256 && isgraph(x >> 5)) {
                     printf("#\\%c", x >> 5);
-                else
+                } else {
                     printf("#\\U+%d", x >> 5);
-            else
+                }
+            } else {
                 printf("%d", x >> 5);
-        else
+            }
+        } else {
             printf("nil");
+        }
         break;
     case 1:
         printf("(");
