@@ -817,8 +817,7 @@ lval eval_go(lval * f, lval ex) {
     longjmp(top_jmp, 1);
 }
 
-lval eval_block(lval * f, lval ex)
-{
+lval eval_block(lval * f, lval ex) {
     jmp_buf jmp;
     lval vs;
     NF(2) T = U = 0;
@@ -1000,7 +999,7 @@ lval setfcdr(lval * f) {
 }
 
 lval lequ(lval * f, lval * h) {
-    double s = o2d(f[1]);
+    double s = o2d(f[1]); /* TODO: optimize */
     for (f += 2; f < h; f++)
         if (s != o2d(*f))
             return 0;
@@ -1008,7 +1007,7 @@ lval lequ(lval * f, lval * h) {
 }
 
 lval lless(lval * f, lval * h) {
-    double s = o2d(f[1]);
+    double s = o2d(f[1]); /* TODO: optimize */
     for (f += 2; f < h; f++)
         if (s < o2d(*f))
             s = o2d(*f);
@@ -1018,14 +1017,14 @@ lval lless(lval * f, lval * h) {
 }
 
 lval lplus(lval * f, lval * h) {
-    double s = 0;
+    double s = 0; /* TODO: optimize */
     for (f++; f < h; f++)
         s += o2d(*f);
     return d2o(f, s);
 }
 
 lval lminus(lval * f, lval * h) {
-    double s = o2d(f[1]);
+    double s = o2d(f[1]); /* TODO: optimize */
     f += 2;
     if (f < h)
         for (; f < h; f++)
@@ -1036,14 +1035,14 @@ lval lminus(lval * f, lval * h) {
 }
 
 lval ltimes(lval * f, lval * h) {
-    double s = 1;
+    double s = 1; /* TODO: optimize */
     for (f++; f < h; f++)
         s *= o2d(*f);
     return d2o(f, s);
 }
 
 lval ldivi(lval * f, lval * h) {
-    double s = o2d(f[1]);
+    double s = o2d(f[1]); /* TODO: optimize */
     f += 2;
     if (f < h)
         for (; f < h; f++)
