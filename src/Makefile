@@ -1,6 +1,6 @@
-CFLAGS  = -Wall
+CFLAGS  = -g -Wall -O0
 CC      = gcc
-LFLAGS  = -lm -ldl
+LFLAGS  = -g -lm -ldl
 LINKER  = gcc
 
 

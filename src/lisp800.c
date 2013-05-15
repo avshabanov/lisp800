@@ -275,7 +275,7 @@ lval *ma0(lval * g, int n) {
     m = m0(g, n + 2);
     if (!m) {
         gc(g);
-        goto st; // TODO: loop?
+        goto st; /* TODO: loop? */
     }
     *m = n << 8;
     return m;
@@ -582,7 +582,7 @@ lval eval_quote(lval * g, lval ex) {
     return car(ex);
 }
 
-// TODO: f seems redundant here
+/* TODO: f seems redundant here */
 int specp(lval * f, lval ex, lval s) {
     for (; ex; ex = cdr(ex)) {
         if (ap(caar(ex)) && o2a(caar(ex))[7] == 3 << 3) {
@@ -1414,7 +1414,9 @@ lval lprint(lval * f) {
 }
 
 lval lexit(lval * f) {
-    exit(0);
+    lval x = f[1];
+    int code = (0 == (x & 3)) ? x >> 5 : 0;
+    exit(code);
     return 0;
 }
 
@@ -1768,7 +1770,7 @@ struct symbol_init symi[] = {
     {"*ERROR-OUTPUT*"}, /* must be 80 */
     {"*PACKAGES*"}, {"STRING=", lstring_equal, 2},
     {"IMAKUNBOUND", limakunbound, 2}, {"EVAL", leval, -2}, {"JREF", ljref, 2, setfjref, 3},
-    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, {"EXIT", lexit, 0}, {"QUIT", lexit, 0}
+    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, {"EXIT", lexit, 1}, {"QUIT", lexit, 1}
 };
 
 int main(int argc, char *argv[]) {
