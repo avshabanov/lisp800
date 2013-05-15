@@ -587,14 +587,16 @@ int specp(lval * f, lval ex, lval s) {
     for (; ex; ex = cdr(ex)) {
         if (ap(caar(ex)) && o2a(caar(ex))[7] == 3 << 3) {
             lval e = cdar(ex);
-            for (; e; e = cdr(e))
+            for (; e; e = cdr(e)) {
                 if (o2a(caar(e))[7] == 4 << 3) {
                     lval sp = cdar(e);
-                    for (; sp; sp = cdr(sp))
+                    for (; sp; sp = cdr(sp)) {
                         if (car(sp) == s) {
                             return 1;
                         }
+                    }
                 }
+            }
         } else {
             break;
         }
@@ -604,8 +606,7 @@ int specp(lval * f, lval ex, lval s) {
 
 void unwind(lval * f, lval c) {
     lval e;
-    NF(0);
-            for (; dyns != c; dyns = cdr(dyns))
+    NF(0) for (; dyns != c; dyns = cdr(dyns))
         if (ap(car(dyns))) {
             if (o2a(car(dyns))[1] == 52) {
                 NE = o2a(car(dyns))[2];
@@ -778,31 +779,26 @@ lval eval_tagbody(lval * f, lval ex) {
     NF(2) T = U = 0;
     U = ms(g, 1, 52, &jmp);
     dyns = cons(g, U, dyns);
-    for (e = ex; e; e = cdr(e)) {
+    for (e = ex; e; e = cdr(e))
         if (ap(car(e))) {
             T = cons(g, dyns, U);
             NE = cons(g, cons(g, cons(g, car(e), 48), T), NE);
-        }
-        e = ex;
-    }
-
+        } e = ex;
 again:
     if (!(tag = setjmp(jmp))) {
         for (; e; e = cdr(e))
-            if (!ap(car(e))) {
+            if (!ap(car(e)))
                 evca(g, e);
-            }
-    } else {
+    } else
         for (e = ex; e; e = cdr(e))
             if (car(e) == tag) {
                 e = cdr(e);
                 goto again;
             }
-    }
-
     unwind(g, cdr(dyns));
     return 0;
 }
+
 lval eval_go(lval * f, lval ex) {
     lval b = *binding(f, car(ex), 3, 0);
     if (o2s(cdr(b))[2]) {
@@ -839,7 +835,8 @@ lval eval_return_from(lval * f, lval ex) {
         unwind(g, car(b));
         T = rvalues(g, evca(g, cdr(ex)));
         longjmp(*jmp, cons(g, T, 0));
-    } dbgr(g, 8, car(ex), &T);
+    }
+    dbgr(g, 8, car(ex), &T);
     longjmp(top_jmp, 1);
 }
 
@@ -861,6 +858,7 @@ lval eval_catch(lval * f, lval ex) {
     dyns = oc;
     return vs;
 }
+
 lval eval_throw(lval * f, lval ex) {
     lval c;
     NF(1) T = 0;
