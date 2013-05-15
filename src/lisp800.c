@@ -779,22 +779,31 @@ lval eval_tagbody(lval * f, lval ex) {
     NF(2) T = U = 0;
     U = ms(g, 1, 52, &jmp);
     dyns = cons(g, U, dyns);
-    for (e = ex; e; e = cdr(e))
+
+    for (e = ex; e; e = cdr(e)) {
         if (ap(car(e))) {
             T = cons(g, dyns, U);
             NE = cons(g, cons(g, cons(g, car(e), 48), T), NE);
-        } e = ex;
-again:
+        }
+    }
+    e = ex;
+
+    again:
     if (!(tag = setjmp(jmp))) {
-        for (; e; e = cdr(e))
-            if (!ap(car(e)))
+        for (; e; e = cdr(e)) {
+            if (!ap(car(e))) {
                 evca(g, e);
-    } else
-        for (e = ex; e; e = cdr(e))
+            }
+        }
+    } else {
+        for (e = ex; e; e = cdr(e)) {
             if (car(e) == tag) {
                 e = cdr(e);
                 goto again;
             }
+        }
+    }
+
     unwind(g, cdr(dyns));
     return 0;
 }
