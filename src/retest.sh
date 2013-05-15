@@ -2,4 +2,4 @@
 
 set -e
 make clean && make
-./target/lisp800 "init800.lisp" "test/smoke.lisp"
+./target/lisp800 "core800.lisp" "test/smoke.lisp"
