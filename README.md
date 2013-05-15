@@ -10,7 +10,7 @@ The main goal is to make interpreter embeddable and multiple context-oriented.
   make
   rlwrap ./target/lisp800 init800.lisp
 ```
-Note, that ``rlwrap`` is not mandatory, i.e. you can run this as ``./target/lisp800 init800.lisp`` but the the latter lacks convenient readline wrapper's features you may want to have.
+Note, that ``rlwrap`` is not mandatory, i.e. you can run this as ``./target/lisp800 init800.lisp`` but the latter one lacks convenient readline wrapper's features you may want to have.
 
 ## How to run smoke test
 ```bash
