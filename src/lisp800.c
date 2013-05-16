@@ -12,14 +12,12 @@
 #define setjmp(e) sigsetjmp(e, 0)
 #define longjmp siglongjmp
 #endif
+
 #ifdef _WIN32
 #include <windows.h>
 #define X __declspec(dllexport)
 #else
 #define X
-#endif
-
-#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -1376,7 +1374,8 @@ void print(lval x) {
                 if (i)
                     printf(" ");
                 print(o2a(x)[i + 2]);
-            } printf(")");
+            } 
+            printf(")");
             break;
         case 180:
             printf("#<package ");
