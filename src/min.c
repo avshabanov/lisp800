@@ -1,3 +1,9 @@
+/**
+ * Attempt to reimplement lisp800 step-by-step in documented and reliable way.
+ *
+ * @author Alexander Shabanov, 2013, http://alexshabanov.com
+ */
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,24 +15,44 @@
 #define countof(x) (sizeof(x)/sizeof((x)[0]))
 #endif
 
+
 /**
  * Main lvalue representation.</p>
- * First three bits are generic type tags:
- * 0xxx - used to distinguish four generic types:
+ *
+ * First two bits represents a value type:
  * <ul>
- *  <li>0 - numbers, chars, nil</li>
+ *  <li>0 - number, char, nil</li>
  *  <li>1 - cons</li>
- *  <li>2 - functions, pacakges, ???</li>
- *  <li>3 - strings, ???</li>
+ *  <li>2 - function, package, ... ???</li>
+ *  <li>3 - strings, ... ???</li>
  * </ul>
+ * </p>
+ * Note, that pointer types (e.g. cons cells) - are expected to be *ALWAYS*
+ * aligned at least by 4, since the trailing bits are used to represent type
+ * information and considered to always be zero.
+ * This seems to not be a problem for all the modern unix.
  */
 typedef intptr_t lval;
 
-/* Extracts lval type (first three bits) */
+/**
+ * Integer type, compatible with lval type. All the resultant integers
+ * should be placed into this type to avoid overflow error.
+ */
+typedef intptr_t lint;
+
+/**
+ * Extracts lval type (first two bits)
+ */
 #define LVAL_GET_TYPE(l) ((l) & 3)
 
-/* nil or ansi char or unicode char or number */
+/**
+ * nil or ansi char or unicode char or number
+ */
 #define LVAL_ANUM_TYPE      (0)
+
+/**
+ * Cons cell
+ */
 #define LVAL_CONS_TYPE      (1)
 
 
@@ -34,17 +60,20 @@ typedef intptr_t lval;
 #define LVAL_IS_NIL(l)      (0 == (l))
 
 /* Char type code (4-th bit) */
-#define LVAL_IS_CHAR(l)     ((0 != ((l) & 8)) && (LVAL_ANUM_TYPE == LVAL_GET_TYPE(l)))
+#define LVAL_IS_CHAR(l)     ((0 != ((l) & 8)) && \
+    (LVAL_ANUM_TYPE == LVAL_GET_TYPE(l)))
+
 #define LVAL_IS_INT(l)      (0 == ((l) & 8))
 
-
+/* Extracts numeric value from lval */
+#define LVAL_AS_ANUM(l)     ((l) >> 5)
 
 
 /* Internal manipulations */
 
 /**
- * o2c - object-to-cons
- * converts lvalue to the pointer, 1 is a list (this function is for CONS cells only)
+ * o2c - object-to-cons, this function is for cons'es only
+ * converts lvalue to the pointer, 1 is a list
  * @see #LVAL_CONS_TYPE
  */
 lval * o2c(lval o) {
@@ -53,8 +82,8 @@ lval * o2c(lval o) {
 }
 
 /**
- * c2o - cons-to-object
- * converts pointer to the lvalue, 1 is a list (this function is for CONS cells only)
+ * c2o - cons-to-object, this function is for cons'es only
+ * converts pointer to the lvalue, 1 is a list
  * 1 designates list type, so that lval & 3 == 1!
  * @see #LVAL_CONS_TYPE
  */
@@ -63,6 +92,13 @@ lval c2o(lval * c) {
     return (lval) c + 1;
 }
 
+/**
+ * cp - consp, cons check
+ * Returns 1 if given object is a cons, 0 otherwise
+ */
+int cp(lval o) {
+    return LVAL_GET_TYPE(o) == LVAL_CONS_TYPE;
+}
 
 /* List functions */
 
@@ -82,30 +118,103 @@ lval set_cdr(lval c, lval val) {
     return o2c(c)[1] = val;
 }
 
-/* print */
-
+/* see lisp800.print(lval) */
 void printval(lval x, FILE * os) {
-    int i;
-
+    lint i;
     switch (LVAL_GET_TYPE(x)) {
     case LVAL_ANUM_TYPE:
         if (LVAL_IS_NIL(x)) {
             fputs("nil", os);
         } else {
+            i = LVAL_AS_ANUM(x);
             /* TODO: unicode chars, see lisp800.print(lval) */
             if (LVAL_IS_CHAR(x)) {
-
+                fprintf(os, "#\\%c", i);
+            } else {
+                fprintf(os, "%ld", (long int) i);
             }
         }
         break;
-
+    case LVAL_CONS_TYPE:
+        fputc('(', os);
+        printval(car(x), os);
+        for (x = cdr(x); cp(x); x = cdr(x)) {
+            fputc(' ', os);
+            printval(car(x), os);
+        }
+        if (0 != x) {
+            fputs(" . ", os);
+            printval(x, os);
+        }
+        fputc(')', os);
+        break;
     default:
         fprintf(os, "<#Unknown %X>", x);
     }
 }
 
+
+/**
+ * Execution context data, contains all the operations context
+ */
+struct exec_context {
+    lval * memory;
+    lval * memf;
+    size_t memory_size;
+    lval * stack;
+};
+
+/* Global execution context */
+static struct exec_context * ec = NULL;
+
+
+/* Symbol introduction */
+lval * m0(lval * g, int n) {
+    lval * m = ec->memf;
+    lval * p = 0;
+
+    n = (n + 1) & ~1; /* TODO: WTF??? */
+
+    for (; m; m = (lval *) *m) {
+
+    }
+}
+
+
+/* Context initialization stuff */
+
+static void init_exec_context(struct exec_context * c) {
+    size_t stack_size = sizeof(lval) * 64 * 1024;
+
+    c->memory_size = sizeof(lval) * 1024 * 1024;
+    c->memory = malloc(c->memory_size);
+    c->memf = c->memory;
+    memset(c->memory, 0, c->memory_size);
+
+    c->memf[0] = 0;
+    c->memf[1] = c->memory_size / sizeof(lval);
+
+    c->stack = malloc(stack_size);
+    memset(c->stack, 0, stack_size);
+}
+
+static void free_exec_context(struct exec_context * c) {
+    free(c->memory);
+    free(c->stack);
+    memset(c, 0, sizeof(struct exec_context));
+}
+
+
 int main(int argc, char * argv[]) {
-    setbuf(stdout, NULL);
-    fprintf(stdout, "sizeof(lval) = %uld\n", sizeof(lval));
+    struct exec_context ctx;
+    lval * sp; /* current stack pointer */
+
+    init_exec_context(&ctx);
+    ec = &ctx;
+
+    sp = ec->stack; /* this is what most frequently called 'g' - e.g. stack pointer */
+    sp += 5; /* TODO: copied */
+
+    free_exec_context(&ctx);
     return 0;
 }

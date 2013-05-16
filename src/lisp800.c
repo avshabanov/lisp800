@@ -1317,15 +1317,21 @@ lval leval(lval * f, lval * h) {
 
 void psym(lval p, lval n) {
     int i;
-    if (!p)
+    if (!p) {
         printf("#:");
-    else if (p != pkg) {
-        lval m = car(o2a(p)[2]);
-        for (i = 0; i < o2s(m)[0] / 64 - 4; i++)
-            putchar(o2z(m)[i]);
-        putchar(':');
-    } for (i = 0; i < o2s(n)[0] / 64 - 4; i++)
+    } else {
+        if (p != pkg) {
+            lval m = car(o2a(p)[2]);
+            for (i = 0; i < o2s(m)[0] / 64 - 4; i++) {
+                putchar(o2z(m)[i]);
+            }
+            putchar(':');
+        }
+    }
+
+    for (i = 0; i < o2s(n)[0] / 64 - 4; i++) {
         putchar(o2z(n)[i]);
+    }
 }
 
 void print(lval x) {
@@ -1356,7 +1362,8 @@ void print(lval x) {
         if (x) {
             printf(" . ");
             print(x);
-        } printf(")");
+        }
+        printf(")");
         break;
     case 2:
         switch (o2a(x)[1]) {
@@ -1776,18 +1783,19 @@ struct symbol_init symi[] = {
 };
 
 int main(int argc, char *argv[]) {
+    int stack_size = sizeof(lval) * 64 * 1024;
     lval *g;
     int i;
     lval sym;
-    memory_size = 4 * 2048 * 1024;
+    memory_size = sizeof(lval) * 2048 * 1024;
     memory = malloc(memory_size);
     memf = memory;
     memset(memory, 0, memory_size);
     memf[0] = 0;
-    memf[1] = memory_size / 4;
-    stack = malloc(256 * 1024);
-    memset(stack, 0, 256 * 1024);
-    g = stack + 5;
+    memf[1] = memory_size / sizeof(lval);
+    stack = malloc(stack_size);
+    memset(stack, 0, stack_size);
+    g = stack + 5; /* TODO: why 5? */
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
         sym = is(g, pkg, strf(g, symi[i].name));

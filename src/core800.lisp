@@ -3823,17 +3823,18 @@
 	 (return-from read-internal
 	   (if convertp
 	       (if symbol
-		   (let ((colon-position (position (code-char 58) string)))
+		   (let ((colon-position (position (char-code 58) string)))
 		     (if colon-position
-			 (multiple-value-bind (symbol status)
-			     (find-symbol (subseq string (+ 1 colon-position))
-					  (subseq string 0 colon-position))
-			   (if (eq status :external)
-			       symbol
-			       (error 'reader-error)))
-			 (intern string)))
-		   (parse-number string))
-	       string))))))
+			 (if (= colon-position 0) (intern (subseq string 1) "KEYWORD")
+			   (multiple-value-bind (symbol status)
+			       (find-symbol (subseq string (+ 1 colon-position))
+					    (subseq string 0 colon-position))
+			     (if (eq status :external)
+				 symbol
+			       (error 'reader-error))))
+		       (intern string)))
+		 (parse-number string))
+	     string))))))
 (defun read-preserving-whitespace (&optional input-stream (eof-error-p t)
 				   eof-value recursive-p)
   (let ((value (read-internal input-stream eof-error-p eof-value recursive-p
