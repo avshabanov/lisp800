@@ -20,18 +20,17 @@
 /**
  * Main lvalue representation.</p>
  *
- * First two bits represents a value type:
- * <ul>
- *  <li>0 - number, char, nil</li>
- *  <li>1 - cons</li>
- *  <li>2 - function, package, ... ???</li>
- *  <li>3 - strings, ... ???</li>
- * </ul>
- * </p>
+ * First two bits represents a value type.
+ *
  * Note, that pointer types (e.g. cons cells) - are expected to be *ALWAYS*
  * aligned at least by 4, since the trailing bits are used to represent type
  * information and considered to always be zero.
  * This seems to not be a problem for all the modern unix.
+ *
+ * @see #LVAL_ANUM_TYPE
+ * @see #LVAL_CONS_TYPE
+ * @see #LVAL_IREF_TYPE
+ * @see #LVAL_JREF_TYPE
  */
 typedef intptr_t lval;
 
@@ -47,7 +46,7 @@ typedef intptr_t lint;
 #define LVAL_GET_TYPE(l) ((l) & 3)
 
 /**
- * nil or ansi char or unicode char or number
+ * nil or ansi char or unicode char or number (fixnum)
  */
 #define LVAL_ANUM_TYPE      (0)
 
@@ -55,6 +54,38 @@ typedef intptr_t lint;
  * Cons cell
  */
 #define LVAL_CONS_TYPE      (1)
+
+/**
+ * IREF objects.
+ * TODO: make it clear
+ *
+ *   Type           Sub Code
+ *  symbol              0
+ *  simple-vector       3
+ *  array               4
+ *  package             5
+ *  function            6
+ *  /User Defined/      t
+ */
+#define LVAL_IREF_TYPE      (2)
+
+/**
+ * JREF objects.
+ * TODO: make it clear
+ *
+ *   Type           Sub Code
+ *  simple-string       20
+ *  double              84
+ *  simple-bit-vector   116
+ *  file-stream         t
+ */
+#define LVAL_JREF_TYPE      (3)
+
+
+/**
+ * Simple string sub type
+ */
+#define LVAL_JREF_SIMPLE_STRING_SUBTYPE         (20)
 
 
 /* Nil type checker */
@@ -163,14 +194,34 @@ void printval(lval x, FILE * os) {
  */
 struct exec_context {
     lval * memory;
-    size_t memory_size; /**< Memory size in bytes */
-    lval * memf; /**< Pointer to the current memory block */
+    size_t memory_size; /**< Allocated memory size, in bytes */
+    lval * memf; /**< Pointer to the current memory sub block */
     lval * stack;
+    size_t stack_size; /**< Allocated stack size, in bytes */
 };
 
 /* Global execution context */
 
 static struct exec_context * ec = NULL;
+
+/* Garbage collecting routines */
+
+/**
+ * Puts garbage collector markers
+ */
+void gcm(lval v) {
+
+    /* TODO: reintroduce */
+}
+
+/**
+ * Collects garbage, f is a current stack pointer
+ */
+lval gc(lval * f) {
+    assert(f < (ec->stack + ec->stack_size / sizeof(lval)));
+    /* TODO: reintroduce */
+    return 0;
+}
 
 
 /* Symbol introduction */
@@ -189,7 +240,7 @@ lval * m0(int n) {
     /* iterate over the available sub blocks */
     for (; m; m = (lval *) m[0]) {
         if (n <= m[1]) {
-            /* size requested fits the current sub block */
+            /* size requested fits into the current sub block */
             if (m[1] == n) {
                 if (p) {
                     p[0] = m[0];
