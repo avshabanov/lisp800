@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <string.h>
 
 #ifndef countof
 #define countof(x) (sizeof(x)/sizeof((x)[0]))
@@ -169,15 +170,38 @@ static struct exec_context * ec = NULL;
 
 
 /* Symbol introduction */
-lval * m0(lval * g, int n) {
-    lval * m = ec->memf;
+
+/**
+ * Allocates n lval units in the context memory and returns it.
+ * Returns 0 if no free cells available.
+ * The caller party may use n lval blocks if the returned pointer is not null.
+ */
+lval * m0(int n) {
+    lval * m = ec->memf; /* start searching from the first memory sub block */
     lval * p = 0;
 
-    n = (n + 1) & ~1; /* TODO: WTF??? */
+    n = (n + 1) & ~1; /* round odd size to the greater even */
 
-    for (; m; m = (lval *) *m) {
+    for (; m; m = (lval *) m[0]) {
+        if (n <= m[1]) {
+            /* size requested fits the current sub block */
+            if (m[1] == n) {
+                if (p) {
+                    p[0] = m[0];
+                } else {
+                    ec->memf = (lval *) m[0]; /* this block fu */
+                }
+            } else {
+                m[1] -= n;
+                m += m[1];
+            }
+            return m;
+        }
 
+        p = m;
     }
+
+    return 0;
 }
 
 
@@ -191,8 +215,11 @@ static void init_exec_context(struct exec_context * c) {
     c->memf = c->memory;
     memset(c->memory, 0, c->memory_size);
 
+    /* index of the next available sub block in memory??? */
     c->memf[0] = 0;
-    c->memf[1] = c->memory_size / sizeof(lval);
+    /* first index contains available memory minus size plus two cells that
+       store size */
+    c->memf[1] = c->memory_size / sizeof(lval) - 2;
 
     c->stack = malloc(stack_size);
     memset(c->stack, 0, stack_size);
@@ -207,13 +234,13 @@ static void free_exec_context(struct exec_context * c) {
 
 int main(int argc, char * argv[]) {
     struct exec_context ctx;
-    lval * sp; /* current stack pointer */
+    lval * sp; /* current stack pointer, designated as `g' in lisp800.c */
 
     init_exec_context(&ctx);
     ec = &ctx;
 
-    sp = ec->stack; /* this is what most frequently called 'g' - e.g. stack pointer */
-    sp += 5; /* TODO: copied */
+    sp = ec->stack;
+    sp += 5; /* TODO: copied, 5 is still unknown magic number */
 
     free_exec_context(&ctx);
     return 0;

@@ -255,8 +255,7 @@ lval *m0(int n) {
                 } else {
                     memf = (lval *) m[0];
                 }
-            }
-            else {
+            } else {
                 m[1] -= n;
                 m += m[1];
             }
