@@ -110,7 +110,7 @@ typedef intptr_t lint;
  */
 lval * o2c(lval o) {
     assert(LVAL_GET_TYPE(o) == LVAL_CONS_TYPE);
-    return (lval *) (o - 1);
+    return (lval *) (o - LVAL_CONS_TYPE);
 }
 
 /**
@@ -120,8 +120,8 @@ lval * o2c(lval o) {
  * @see #LVAL_CONS_TYPE
  */
 lval c2o(lval * c) {
-    assert((((lval) c) & 3) == 0);
-    return (lval) c + 1;
+    assert(LVAL_GET_TYPE((lval) c) == 0); /* expect aligned pointer */
+    return (lval) c + LVAL_CONS_TYPE;
 }
 
 /**
@@ -132,7 +132,7 @@ int cp(lval o) {
     return LVAL_GET_TYPE(o) == LVAL_CONS_TYPE;
 }
 
-/* List functions */
+/* car/cdr/set_car/set_cdr list functions */
 
 lval car(lval c) {
     return (c & 3) == 1 ? o2c(c)[0] : 0;
@@ -150,7 +150,49 @@ lval set_cdr(lval c, lval val) {
     return o2c(c)[1] = val;
 }
 
-/* see lisp800.print(lval) */
+
+/**
+ * o2a - object-to-iref (originally array)
+ */
+lval * o2a(lval o) {
+    assert(LVAL_GET_TYPE(o) == LVAL_IREF_TYPE);
+    return (lval *) (o - LVAL_IREF_TYPE);
+}
+
+/**
+ * a2o - iref-to-object
+ */
+lval a2o(lval * a) {
+    assert(LVAL_GET_TYPE((lval) a) == 0); /* expect aligned pointer */
+    return (lval) a + LVAL_IREF_TYPE;
+}
+
+/**
+ * ap - iref checker
+ */
+int ap(lval o) {
+    return LVAL_GET_TYPE(o) == LVAL_IREF_TYPE;
+}
+
+/**
+ * o2s - object-to-jref (originally string)
+ */
+lval * o2s(lval o) {
+    assert(LVAL_GET_TYPE(o) == LVAL_JREF_TYPE);
+    return (lval *) (o - LVAL_JREF_TYPE);
+}
+
+lval s2o(lval * s) {
+    assert(LVAL_GET_TYPE((lval) s) == 0); /* expect aligned pointer */
+    return (lval) s + LVAL_JREF_TYPE;
+}
+
+int sp(lval o) {
+    return LVAL_GET_TYPE(o) == LVAL_JREF_TYPE;
+}
+
+/* Printing, see lisp800.print(lval) */
+
 void printval(lval x, FILE * os) {
     lint i;
     switch (LVAL_GET_TYPE(x)) {
@@ -161,7 +203,7 @@ void printval(lval x, FILE * os) {
             i = LVAL_AS_ANUM(x);
             /* TODO: unicode chars, see lisp800.print(lval) */
             if (LVAL_IS_CHAR(x)) {
-                fprintf(os, "#\\%c", i);
+                fprintf(os, "#\\%c", (char) i);
             } else {
                 fprintf(os, "%ld", (long int) i);
             }
@@ -180,8 +222,11 @@ void printval(lval x, FILE * os) {
         }
         fputc(')', os);
         break;
+    case LVAL_IREF_TYPE:
+        assert(!"Unsupported");
+        break;
     default:
-        fprintf(os, "<#Unknown %X>", x);
+        fprintf(os, "<#Unknown %ld>", x);
     }
 }
 
@@ -261,13 +306,67 @@ lval * m0(int n) {
     return 0;
 }
 
+#if 0
+/* TODO: m0 with out-of-memory reporting */
+lval * oom_m0(int n, lval * g, ...) {
+    lval * c = m0(n);
+    if (!c) {
+        va_list v;
+        va_start(v, g);
+        for (;;) {
+            lval l = va_arg(v, lval);
+            if (!l) {
+                break;
+            }
+            gcm(l);
+        }
+        va_end(v);
+        gc(g);
+        
+        /* retry */
+        c = m0(n);
+        if (!c) {
+            fputs("Out of memory", stderr);
+            exit(-1);
+        }
+    }
+    
+    return c;
+}
+#endif
+
+
+/* LISP primitive functions */
+
+/**
+ * Creates cons cell of a and b.
+ * Stack pointer f is used for garbage collecting (unused).
+ */
+lval cons(lval * f, lval a, lval b) {
+    lval * c = m0(2); /* TODO: use oom_m0 or no gc here at all! */
+    if (!c) {
+        /* TODO: gc */
+        fputs("Out of memory", stderr);
+        exit(-1);
+    }
+    
+    c[0] = a;
+    c[1] = b;
+    return c2o(c);
+}
+
+/* Allocates ordinary list */
+lval l2(lval * f, lval a, lval b) {
+    return cons(f, a, cons(f, b, 0));
+}
+
 
 /* Context initialization stuff */
 
 static void init_exec_context(struct exec_context * c) {
     size_t stack_size = sizeof(lval) * 64 * 1024;
 
-    c->memory_size = sizeof(lval) * 8;
+    c->memory_size = sizeof(lval) * 2 * 1024 * 1024;
     c->memory = malloc(c->memory_size);
     c->memf = c->memory;
     memset(c->memory, 0, c->memory_size);
@@ -291,16 +390,17 @@ static void free_exec_context(struct exec_context * c) {
 #if 1
 /* Debug stuff */
 
-static void exhaust_heap() {
+static void exhaust_heap(lval * f) {
     int counter = 1000;
     int i;
+    assert(ec->memory_size < 64); /* consider setting memory size small */
     for (;;) {
         lval * vt = m0(2);
         if (vt) {
             vt[0] =  ++counter;
             vt[1] =  ++counter;
         }
-        fprintf(stdout, "vt=0x%08X, memf=0x%08X\n", (unsigned) vt, (unsigned) ec->memf);
+        fprintf(stdout, "vt=0x%08X, memf=0x%08X\n", vt, ec->memf);
 
         fputs("MEM:", stdout);
         for (i = 0; i < ec->memory_size / sizeof(lval); ++i) {
@@ -314,21 +414,35 @@ static void exhaust_heap() {
     }
 }
 
+static void print_sample_cons(lval * f) {
+    lval c;
+    
+    c = l2(f, l2(f, 0, 3 << 5), l2(f, 2 << 5, 0));
+    fprintf(stdout, "c =\n");
+    printval(c, stdout);
+    fprintf(stdout, "\n\n");
+}
 
-#endif /* Debug stuff */
+#endif /* End of debug stuff */
 
 int main(int argc, char * argv[]) {
     struct exec_context ctx;
-    lval * sp; /* current stack pointer, designated as `g' in lisp800.c */
+    lval * f; /* current stack pointer, designated as `g' in lisp800.c */
 
     init_exec_context(&ctx);
     ec = &ctx;
 
-    sp = ec->stack;
-    sp += 5; /* TODO: copied, 5 is still unknown magic number */
+    f = ec->stack;
+    f += 5; /* TODO: copied, 5 is still unknown magic number */
 
-    exhaust_heap();
-
+    /* Use debug stuff */
+#if 1
+    if (argc > 2 && strcmp(argv[1], "testall") == 0) {
+        exhaust_heap(f);
+    }
+#endif
+    print_sample_cons(f);
+    
     free_exec_context(&ctx);
     return 0;
 }
