@@ -243,7 +243,7 @@ lval gc(lval * f) {
     return 0;
 }
 
-lval *m0(lval * g, int n) {
+lval *m0(int n) {
     lval *m = memf;
     lval *p = 0;
     n = (n + 1) & ~1;
@@ -270,7 +270,7 @@ lval *m0(lval * g, int n) {
 lval *ma0(lval * g, int n) {
     lval *m;
     st:
-    m = m0(g, n + 2);
+    m = m0(n + 2);
     if (!m) {
         gc(g);
         goto st; /* TODO: loop? */
@@ -282,7 +282,7 @@ lval *ma0(lval * g, int n) {
 lval *ms0(lval * g, int n) {
     lval *m;
     st:
-    m = m0(g, (n + 12) / 4);
+    m = m0((n + 12) / 4);
     if (!m) {
         gc(g);
         goto st;
@@ -294,7 +294,7 @@ lval *ms0(lval * g, int n) {
 lval *mb0(lval * g, int n) {
     lval *m;
     st:
-    m = m0(g, (n + 95) / 32);
+    m = m0((n + 95) / 32);
     if (!m) {
         gc(g);
         goto st;
@@ -309,7 +309,7 @@ X lval ma(lval * g, int n, ...) {
     lval *m;
     st:
     va_start(v, n);
-    m = m0(g, n + 2);
+    m = m0(n + 2);
     if (!m) {
         for (i = -1; i < n; i++) {
             gcm(va_arg(v, lval));
@@ -330,7 +330,7 @@ X lval ms(lval * g, int n,...) {
     lval *m;
     st:
     va_start(v, n);
-    m = m0(g, n + 2);
+    m = m0(n + 2);
     if (!m) {
         gc(g);
         goto st;
@@ -368,12 +368,12 @@ unsigned o2u(lval o) {
 }
 
 lval cons(lval * g, lval a, lval d) {
-    lval *c = m0(g, 2);
+    lval *c = m0(2);
     if (!c) {
         gcm(a);
         gcm(d);
         gc(g);
-        c = m0(g, 2);
+        c = m0(2);
     }
     c[0] = a;
     c[1] = d;
