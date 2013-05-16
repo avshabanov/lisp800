@@ -156,16 +156,20 @@ void printval(lval x, FILE * os) {
 
 
 /**
- * Execution context data, contains all the operations context
+ * Execution context data, contains all the operations context.
+ *
+ * @see #m0
+ * @see #init_exec_context
  */
 struct exec_context {
     lval * memory;
-    lval * memf;
-    size_t memory_size;
+    size_t memory_size; /**< Memory size in bytes */
+    lval * memf; /**< Pointer to the current memory block */
     lval * stack;
 };
 
 /* Global execution context */
+
 static struct exec_context * ec = NULL;
 
 
@@ -178,10 +182,11 @@ static struct exec_context * ec = NULL;
  */
 lval * m0(int n) {
     lval * m = ec->memf; /* start searching from the first memory sub block */
-    lval * p = 0;
+    lval * p = 0; /* previous memory sub block */
 
     n = (n + 1) & ~1; /* round odd size to the greater even */
 
+    /* iterate over the available sub blocks */
     for (; m; m = (lval *) m[0]) {
         if (n <= m[1]) {
             /* size requested fits the current sub block */
@@ -189,7 +194,8 @@ lval * m0(int n) {
                 if (p) {
                     p[0] = m[0];
                 } else {
-                    ec->memf = (lval *) m[0]; /* this block fu */
+                    /* allocate the entire sub block, but update memf pointer */
+                    ec->memf = (lval *) m[0];
                 }
             } else {
                 m[1] -= n;
@@ -210,16 +216,16 @@ lval * m0(int n) {
 static void init_exec_context(struct exec_context * c) {
     size_t stack_size = sizeof(lval) * 64 * 1024;
 
-    c->memory_size = sizeof(lval) * 1024 * 1024;
+    c->memory_size = sizeof(lval) * 8;
     c->memory = malloc(c->memory_size);
     c->memf = c->memory;
     memset(c->memory, 0, c->memory_size);
 
-    /* index of the next available sub block in memory??? */
+    /* index of the next available sub block in memory */
     c->memf[0] = 0;
     /* first index contains available memory minus size plus two cells that
        store size */
-    c->memf[1] = c->memory_size / sizeof(lval) - 2;
+    c->memf[1] = c->memory_size / sizeof(lval);
 
     c->stack = malloc(stack_size);
     memset(c->stack, 0, stack_size);
@@ -231,6 +237,34 @@ static void free_exec_context(struct exec_context * c) {
     memset(c, 0, sizeof(struct exec_context));
 }
 
+#if 1
+/* Debug stuff */
+
+static void exhaust_heap() {
+    int counter = 1000;
+    int i;
+    for (;;) {
+        lval * vt = m0(2);
+        if (vt) {
+            vt[0] =  ++counter;
+            vt[1] =  ++counter;
+        }
+        fprintf(stdout, "vt=0x%08X, memf=0x%08X\n", (unsigned) vt, (unsigned) ec->memf);
+
+        fputs("MEM:", stdout);
+        for (i = 0; i < ec->memory_size / sizeof(lval); ++i) {
+            fprintf(stdout, " %4d", ec->memory[i]);
+        }
+        fputs(".\n", stdout);
+
+        if (vt == NULL) {
+            break;
+        }
+    }
+}
+
+
+#endif /* Debug stuff */
 
 int main(int argc, char * argv[]) {
     struct exec_context ctx;
@@ -241,6 +275,8 @@ int main(int argc, char * argv[]) {
 
     sp = ec->stack;
     sp += 5; /* TODO: copied, 5 is still unknown magic number */
+
+    exhaust_heap();
 
     free_exec_context(&ctx);
     return 0;

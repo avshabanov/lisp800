@@ -243,6 +243,7 @@ lval gc(lval * f) {
     return 0;
 }
 
+/* TODO: buggy when memory overflows */
 lval *m0(int n) {
     lval *m = memf;
     lval *p = 0;
@@ -272,7 +273,7 @@ lval *ma0(lval * g, int n) {
     m = m0(n + 2);
     if (!m) {
         gc(g);
-        goto st; /* TODO: loop? */
+        goto st;
     }
     *m = n << 8;
     return m;
