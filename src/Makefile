@@ -1,6 +1,10 @@
-CFLAGS  = -m32 -g -Wall -O0
+
+CMN     = -m32 -g
+#CMN     = -m32 -O2 -fomit-frame-pointer
+
+CFLAGS  = $(CMN) -Wall -O0
 CC      = gcc
-LFLAGS  = -m32 -g -lm -ldl
+LFLAGS  = $(CMN) -lm -ldl
 LINKER  = gcc
 
 
