@@ -205,7 +205,8 @@ lval gc(lval * f) {
     gcm(pkgs);
     gcm(dyns);
     for (; f > stack; f--) {
-        if ((*f & 3) && (*f < memory || *f > memory + memory_size / sizeof(lval))) {
+        if ((*f & 3) && (*f < memory ||
+                         *f > (memory + memory_size / sizeof(lval)))) {
             printf("%x\n", *f);
         }
         gcm(*f);
@@ -213,7 +214,7 @@ lval gc(lval * f) {
     memf = 0;
     m = memory;
     i = 0;
-    while (m < memory + memory_size / sizeof(lval)) {
+    while (m < (memory + memory_size / sizeof(lval))) {
         l = ((m[1] & 4 ? m[0] >> 8 : 0) + 1) & ~1;
         if (m[0] & 4) {
             if (u) {
@@ -271,28 +272,16 @@ lval * m0(int n) {
 /**
  * Allocates n lval units, applies gcm to the mgc lvals in variadic params.
  */
-lval * cm0(lval * g, int n, int mgc, ...) {
+lval * cm0(lval * g, int n) {
     lval * m;
     int i;
-
     for (i = 0; i < GC_MAX_RETRY; ++i) {
-        va_list ap;
-        int j;
-
         m = m0(n);
         if (m) {
             break;
         }
-
         gc(g);
-
-        va_start(ap, mgc);
-        for (j = 0; j < mgc; ++j) {
-            gcm(va_arg(ap, lval));
-        }
-        va_end(ap);
     }
-
     /* Recheck pointer after gc */
     if (!m) {
         fprintf(stderr, "Out of memory");
@@ -302,19 +291,19 @@ lval * cm0(lval * g, int n, int mgc, ...) {
 }
 
 lval * ma0(lval * g, int n) {
-    lval * m = cm0(g, n + 2, 0);
+    lval * m = cm0(g, n + 2);
     *m = n << 8;
     return m;
 }
 
 lval * ms0(lval * g, int n) {
-    lval * m = cm0(g, n / sizeof(lval) + 3, 0);
+    lval * m = cm0(g, n / sizeof(lval) + 3);
     *m = (n + 4) << 6;
     return m;
 }
 
 lval *mb0(lval * g, int n) {
-    lval *m = cm0(g, (n + 95) / 32, 0);
+    lval *m = cm0(g, (n + 95) / 32);
     *m = (n + 31) << 3;
     return m;
 }
@@ -322,39 +311,26 @@ lval *mb0(lval * g, int n) {
 X lval ma(lval * g, int n, ...) {
     va_list v;
     int i;
-    lval *m;
-    st:
-    va_start(v, n);
-    m = m0(n + 2);
-    if (!m) {
-        for (i = -1; i < n; i++) {
-            gcm(va_arg(v, lval));
-        }
-        gc(g);
-        goto st;
-    }
+    lval *m = cm0(g, n + 2);
     *m = n << 8;
+    va_start(v, n);
     for (i = -1; i < n; i++) {
         m[2 + i] = va_arg(v, lval);
     }
+    va_end(v);
     return a2o(m);
 }
 
 X lval ms(lval * g, int n,...) {
     va_list v;
     int i;
-    lval *m;
-    st:
-    va_start(v, n);
-    m = m0(n + 2);
-    if (!m) {
-        gc(g);
-        goto st;
-    }
+    lval *m  = cm0(g, n + 2);
     *m = n << 8;
+    va_start(v, n);
     for (i = -1; i < n; i++) {
         m[2 + i] = va_arg(v, lval);
     }
+    va_end(v);
     return s2o(m);
 }
 
@@ -390,6 +366,10 @@ lval cons(lval * g, lval a, lval d) {
         gcm(d);
         gc(g);
         c = m0(2);
+        if (!c) {
+            fprintf(stderr, "Out of memory");
+            exit(-1);
+        }
     }
     c[0] = a;
     c[1] = d;

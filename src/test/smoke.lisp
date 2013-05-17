@@ -12,6 +12,11 @@
 (is eq 1 1)
 (is equal (list 1 'a 'b) (cons 1 '(a b)))
 
+(is eq 10 (if t 10 20))
+
+(is eq t (stringp "abc"))
+(is equal (subseq "abc" 1) "bc")
+
 (defun accum (r) (if (= 0 r) (list 0) (cons r (accum (- r 1)))))
 (is equal (list 4 3 2 1 0) (accum 4))
 
