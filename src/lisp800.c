@@ -150,7 +150,7 @@ lval *binding(lval * f, lval sym, int type, int *macro) {
         dbgr(f, type, sym, &sym);
         goto st;
     }
-    return o2a(sym) + 4 + type;
+    return o2a(sym) + sizeof(lval) + type;
 }
 
 lval *memory;
@@ -198,14 +198,14 @@ lval gc(lval * f) {
     printf(";garbage collecting...\n");
     while (memf) {
         lval *n = (lval *) memf[0];
-        memset(memf, 0, 4 * memf[1]);
+        memset(memf, 0, sizeof(lval) * memf[1]);
         memf = (lval *) n;
     }
     gcm(xvalues);
     gcm(pkgs);
     gcm(dyns);
     for (; f > stack; f--) {
-        if ((*f & 3) && (*f < memory || *f > memory + memory_size / 4)) {
+        if ((*f & 3) && (*f < memory || *f > memory + memory_size / sizeof(lval))) {
             printf("%x\n", *f);
         }
         gcm(*f);
@@ -213,7 +213,7 @@ lval gc(lval * f) {
     memf = 0;
     m = memory;
     i = 0;
-    while (m < memory + memory_size / 4) {
+    while (m < memory + memory_size / sizeof(lval)) {
         l = ((m[1] & 4 ? m[0] >> 8 : 0) + 1) & ~1;
         if (m[0] & 4) {
             if (u) {
@@ -243,10 +243,9 @@ lval gc(lval * f) {
     return 0;
 }
 
-/* TODO: buggy when memory overflows */
-lval *m0(int n) {
-    lval *m = memf;
-    lval *p = 0;
+lval * m0(int n) {
+    lval * m = memf;
+    lval * p = 0;
     n = (n + 1) & ~1;
     for (; m; m = (lval *) m[0]) {
         if (n <= m[1]) {
@@ -267,38 +266,55 @@ lval *m0(int n) {
     return 0;
 }
 
-lval *ma0(lval * g, int n) {
-    lval *m;
-    st:
-    m = m0(n + 2);
-    if (!m) {
+#define GC_MAX_RETRY    (3)
+
+/**
+ * Allocates n lval units, applies gcm to the mgc lvals in variadic params.
+ */
+lval * cm0(lval * g, int n, int mgc, ...) {
+    lval * m;
+    int i;
+
+    for (i = 0; i < GC_MAX_RETRY; ++i) {
+        va_list ap;
+        int j;
+
+        m = m0(n);
+        if (m) {
+            break;
+        }
+
         gc(g);
-        goto st;
+
+        va_start(ap, mgc);
+        for (j = 0; j < mgc; ++j) {
+            gcm(va_arg(ap, lval));
+        }
+        va_end(ap);
     }
+
+    /* Recheck pointer after gc */
+    if (!m) {
+        fprintf(stderr, "Out of memory");
+        exit(-1);
+    }
+    return m;
+}
+
+lval * ma0(lval * g, int n) {
+    lval * m = cm0(g, n + 2, 0);
     *m = n << 8;
     return m;
 }
 
-lval *ms0(lval * g, int n) {
-    lval *m;
-    st:
-    m = m0((n + 12) / 4);
-    if (!m) {
-        gc(g);
-        goto st;
-    }
+lval * ms0(lval * g, int n) {
+    lval * m = cm0(g, n / sizeof(lval) + 3, 0);
     *m = (n + 4) << 6;
     return m;
 }
 
 lval *mb0(lval * g, int n) {
-    lval *m;
-    st:
-    m = m0((n + 95) / 32);
-    if (!m) {
-        gc(g);
-        goto st;
-    }
+    lval *m = cm0(g, (n + 95) / 32, 0);
     *m = (n + 31) << 3;
     return m;
 }
@@ -1793,7 +1809,7 @@ int main(int argc, char *argv[]) {
     memf[1] = memory_size / sizeof(lval);
     stack = malloc(stack_size);
     memset(stack, 0, stack_size);
-    g = stack + 5; /* TODO: why 5? */
+    g = stack;
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
         sym = is(g, pkg, strf(g, symi[i].name));
