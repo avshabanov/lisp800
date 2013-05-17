@@ -695,7 +695,7 @@ int main(int argc, char * argv[]) {
         print_something(f);
     }
 #endif
-    print_something(f);
+    print_sample_cons(f);
     
     free_exec_context(&ctx);
     return 0;
