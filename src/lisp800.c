@@ -1319,14 +1319,12 @@ void psym(lval p, lval n) {
     int i;
     if (!p) {
         printf("#:");
-    } else {
-        if (p != pkg) {
-            lval m = car(o2a(p)[2]);
-            for (i = 0; i < o2s(m)[0] / 64 - 4; i++) {
-                putchar(o2z(m)[i]);
-            }
-            putchar(':');
+    } else if (p != pkg) {
+        lval m = car(o2a(p)[2]);
+        for (i = 0; i < o2s(m)[0] / 64 - 4; i++) {
+            putchar(o2z(m)[i]);
         }
+        putchar(':');
     }
 
     for (i = 0; i < o2s(n)[0] / 64 - 4; i++) {
