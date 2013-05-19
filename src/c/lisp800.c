@@ -965,7 +965,8 @@ lval lapply(lval * f, lval * h) {
         h[0] = cdr(h[-1]);
         h[-1] = car(h[-1]);
         h++;
-    } return call(f, f[1], h - f - 3);
+    }
+    return call(f, f[1], h - f - 3);
 }
 
 lval leq(lval * f) {

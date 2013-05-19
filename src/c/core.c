@@ -113,6 +113,10 @@ typedef intptr_t lint;
 #define LVAL_JREF_DOUBLE_SUBTYPE                (84)
 #define LVAL_JREF_BIT_VECTOR_SUBTYPE            (116)
 
+#define LVAL_JREF_SIZE_BIT_SHIFT                (6)
+
+#define LVAL_IREF_SIZE_BIT_SHIFT                (8)
+
 /* Internal manipulations */
 
 /**
@@ -253,14 +257,15 @@ void psym(lval p, lval sym, FILE * os) {
         fputs("#: ", os);
     } else if (p != ec->pkg) {
         lval m = car(o2a(p)[2]);
+        lint size = (o2s(m)[0] >> LVAL_JREF_SIZE_BIT_SHIFT) - sizeof(lval);
         /* TODO: remove magic numbers */
-        for (i = 0; i < o2s(m)[0] / 64 - 4; i++) {
+        for (i = 0; i < size; i++) {
             fputc(o2z(m)[i], os);
         }
         fputc(':', os);
     }
 
-    for (i = 0; i < o2s(sym)[0] / 64 - 4; i++) {
+    for (i = 0; i < (o2s(sym)[0] >> LVAL_JREF_SIZE_BIT_SHIFT) - sizeof(lval); i++) {
         fputc(o2z(sym)[i], os);
     }
 }
@@ -313,7 +318,7 @@ void fprint_lval(lval x, FILE * os) {
             break;
         case LVAL_IREF_SIMPLE_VECTOR_SUBTYPE:
             fputs("#(", os);
-            for (i = 0; i < (val[0] >> 8); ++i) {
+            for (i = 0; i < (val[0] >> LVAL_IREF_SIZE_BIT_SHIFT); ++i) {
                 if (i > 0) {
                     fputc(' ', os);
                 }
@@ -336,7 +341,7 @@ void fprint_lval(lval x, FILE * os) {
         switch (val[1]) {
         case LVAL_JREF_SIMPLE_STRING_SUBTYPE:
             fputc('"', os);
-            for (i = 0; i < (val[0] / 64 - 4); ++i) {
+            for (i = 0; i < ((val[0] >> LVAL_JREF_SIZE_BIT_SHIFT) - sizeof(lval)); ++i) {
                 char c = o2z(x)[i];
                 if (c == '\\' || c == '\"') {
                     fputc('\\', os);
@@ -410,7 +415,7 @@ lval gc(lval * f) {
  * Returns NULL if no free cells available.
  * The caller party may use n lval blocks if the returned pointer is not null.
  */
-lval * m0(int n) {
+lval * m0(size_t n) {
     lval * m = ec->memf; /* start searching from the first memory sub block */
     lval * p = 0; /* previous memory sub block */
 
@@ -445,7 +450,7 @@ lval * m0(int n) {
  * Allocates n lval units, throws error if unable to do so.
  * Never returns NULL.
  */
-lval * cm0(int n, lval * f) {
+lval * cm0(size_t n, lval * f) {
     lval * m = m0(n);
     if (NULL == m) {
         /* TODO: collect garbage multiple times, if possible */
@@ -465,20 +470,19 @@ lval * cm0(int n, lval * f) {
 /**
  * Allocates iref
  */
-lval * ma0(lval * f, int n) {
+lval * ma0(lval * f, size_t n) {
     lval * m = cm0(n + 2, f);
-    *m = n << 8; /* TODO: remove magic number */
+    *m = n << LVAL_IREF_SIZE_BIT_SHIFT;
     return m;
 }
 
-lval ma(lval * f, int n, ...) {
-    /* TODO: rewrite */
+lval ma(lval * f, size_t n, ...) {
     va_list v;
-    int i;
+    size_t i;
     lval * m;
     va_start(v, n);
     m = cm0(n + 2, f);
-    m[0] = n << 8;
+    m[0] = n << LVAL_IREF_SIZE_BIT_SHIFT;
     for (i = 0; i <= n; i++) {
         m[1 + i] = va_arg(v, lval);
     }
@@ -489,9 +493,9 @@ lval ma(lval * f, int n, ...) {
 /**
  * Allocates jref
  */
-lval * ms0(lval * f, int n) {
+lval * ms0(lval * f, size_t n) {
     lval * m = cm0(n / sizeof(lval) + 3, f);
-    *m = (n + sizeof(lval)) << 6; /* TODO: remove magic number */
+    *m = (n + sizeof(lval)) << LVAL_JREF_SIZE_BIT_SHIFT;
     return m;
 }
 
@@ -517,32 +521,96 @@ lval l2(lval * f, lval a, lval b) {
  * Allocates string
  */
 lval strf(lval * f, const char * s) {
-    int j = strlen(s);
-    lval *str = ms0(f, j);
+    size_t j = strlen(s);
+    lval * str = ms0(f, j);
     str[1] = LVAL_JREF_SIMPLE_STRING_SUBTYPE;
-    for (j++; j; j--) {
-        ((char *) str)[7 + j] = s[j - 1];
-    }
+    memcpy(str + 2, s, j + 1); /* copy string with trailing zero */
     return s2o(str);
 }
 
+#define DEFAULT_PACKAGE_SYM_TABLE_SIZE  (1021)
+
+/**
+ * Makes symbol table for package
+ */
 lval mkv(lval * f) {
-    /* TODO: rewrite */
-    int i = 2;
-    lval *r = ma0(f, 1021);
+    lval *r = ma0(f, DEFAULT_PACKAGE_SYM_TABLE_SIZE);
     r[1] = LVAL_IREF_SIMPLE_VECTOR_SUBTYPE;
-    while (i < 1023) {
-        r[i++] = 0;
-    }
+    memset(r + 2, 0, DEFAULT_PACKAGE_SYM_TABLE_SIZE * sizeof(lval));
     return a2o(r);
 }
 
+/**
+ * Makes package which is a 6-element array of the following structure:
+ * '(name nickname1 ... nicknameN) table1 table2 0 0 0
+ */
 lval mkp(lval * f, const char *s0, const char *s1) {
-    /* TODO: rewrite */
     return ma(f, 6, LVAL_IREF_PACKAGE_SUBTYPE,
           l2(f, strf(f, s0), strf(f, s1)), mkv(f), mkv(f), 0, 0, 0);
 }
 
+/**
+ * calculates hash from jref value
+ */
+unsigned int jref_hash(lval s) {
+    unsigned char * z = (unsigned char *) o2z(s);
+    unsigned int i = 0, h = 0, g;
+    while (i < ((o2s(s)[0] >> LVAL_JREF_SIZE_BIT_SHIFT) - sizeof(lval))) {
+        h = (h << 4) + z[i++];
+        g = h & 0xf0000000;
+        if (g) {
+            h = h ^ (g >> 24) ^ g;
+        }
+    }
+    return h;
+}
+
+int string_equal_do(lval a, lval b) {
+    size_t i;
+    for (i = 0; i < (o2s(a)[0] >> LVAL_JREF_SIZE_BIT_SHIFT) - sizeof(lval); i++) {
+        if (o2z(a)[i] != o2z(b)[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int string_equal(lval a, lval b) {
+    return a == b || (sp(a) && sp(b) &&
+                      o2s(a)[0] == o2s(b)[0] &&
+                      o2s(a)[1] == LVAL_JREF_SIMPLE_STRING_SUBTYPE &&
+                      o2s(b)[1] == LVAL_JREF_SIMPLE_STRING_SUBTYPE &&
+                      string_equal_do(a, b));
+}
+
+/**
+ * Creates new symbol, in origin implementation named 'is'
+ */
+lval make_symbol(lval * f, lval p, lval s) {
+    int h = jref_hash(s) % DEFAULT_PACKAGE_SYM_TABLE_SIZE;
+    int i = 3;
+    /*lval * pkgp;*/
+    lval m;
+    for (; i < 5; i++) {
+        m = o2a(o2a(p)[i])[2 + h];
+        for (; m; m = cdr(m)) {
+            lval y = car(m);
+            if (string_equal(o2a(y)[2], s)) {
+                return o2a(y)[7] ? y : 0;
+            }
+        }
+    }
+    /* TODO: understand what 8,8,8... mean */
+    m = ma(f, 9, LVAL_IREF_SYMBOL_SUBTYPE, s, 0, 8, 8, 8, -8, 16, p, 0);
+    if (p == ec->kwp) {
+        o2a(m)[4] = m;
+    }
+    
+    /*pkgp = o2a(o2a(p)[3]) + h + 2;*/
+    /* TODO: rewrite as *pkgp = cons(f, m, *pkgp); */
+    o2a(o2a(p)[3])[2 + h] = cons(f, m, o2a(o2a(p)[3])[2 + h]);
+    return m;
+}
 
 /* Evaluation core */
 
@@ -631,6 +699,8 @@ static void free_exec_context(struct exec_context * c) {
     memset(c, 0, sizeof(struct exec_context));
 }
 
+
+
 #if 1
 /* Debug stuff */
 
@@ -668,18 +738,35 @@ static void print_sample_cons(lval * f) {
 }
 
 static void dbg_printval(lval * f, const char * valname, lval val) {
-    fprintf(stdout, "%s = ", valname);
+    const char * type;
+    switch (LVAL_GET_TYPE(val)) {
+    case LVAL_ANUM_TYPE:
+        type = "ANUM";
+        break;
+    case LVAL_CONS_TYPE:
+        type = "CONS";
+        break;
+    case LVAL_IREF_TYPE:
+        type = "IREF";
+        break;
+    case LVAL_JREF_TYPE:
+        type = "JREF";
+        break;
+    default:
+        type = "????";
+    }
+    
+    fprintf(stdout, "%s (%s) = ", valname, type);
     fprint_lval(val, stdout);
     fputc('\n', stdout);
 }
 
 static void print_something(lval * f) {
     dbg_printval(f, "test", strf(f, "test"));
-    
-    
-    //printval(ec->pkg, stdout);
-    //fprintf(stdout, "\n");
+    dbg_printval(f, "pkg", ec->pkg);
+    dbg_printval(f, "sym", make_symbol(f, ec->pkg, strf(f, "point")));
 }
+
 
 #endif /* End of debug stuff */
 
@@ -691,10 +778,9 @@ int main(int argc, char * argv[]) {
     ec = &ctx;
 
     f = ec->stack;
-    f += 5; /* TODO: copied, 5 is still unknown magic number */
-
+    
     /* init packages */
-    ec->pkg = mkp(f, "CL", "COMMON-LISP");
+    ec->pkg = mkp(f, "COMMON-LISP", "CL");
     ec->kwp = mkp(f, "KEYWORD", "");
 
     /* Use debug stuff */
