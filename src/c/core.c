@@ -265,7 +265,7 @@ void psym(lval p, lval sym, FILE * os) {
     }
 }
 
-void printval(lval x, FILE * os) {
+void fprint_lval(lval x, FILE * os) {
     lval * val;
     lint i;
     switch (LVAL_GET_TYPE(x)) {
@@ -286,14 +286,14 @@ void printval(lval x, FILE * os) {
 
     case LVAL_CONS_TYPE:
         fputc('(', os);
-        printval(car(x), os);
+        fprint_lval(car(x), os);
         for (x = cdr(x); cp(x); x = cdr(x)) {
             fputc(' ', os);
-            printval(car(x), os);
+            fprint_lval(car(x), os);
         }
         if (LVAL_NIL != x) {
             fputs(" . ", os);
-            printval(x, os);
+            fprint_lval(x, os);
         }
         fputc(')', os);
         break;
@@ -304,7 +304,7 @@ void printval(lval x, FILE * os) {
         case LVAL_IREF_FUNCTION_SUBTYPE:
             fputs("#<function ", os);
             /* TODO: remove magic number */
-            printval(val[6], os);
+            fprint_lval(val[6], os);
             fputc('>', os);
             break;
         case LVAL_IREF_SYMBOL_SUBTYPE:
@@ -317,13 +317,13 @@ void printval(lval x, FILE * os) {
                 if (i > 0) {
                     fputc(' ', os);
                 }
-                printval(val[i + 2], os);
+                fprint_lval(val[i + 2], os);
             }
             fputc(')', os);
             break;
         case LVAL_IREF_PACKAGE_SUBTYPE:
             fputs("#<package ", os);
-            printval(car(val[2]), os);
+            fprint_lval(car(val[2]), os);
             fputc('>', os);
             break;
         default:
@@ -478,10 +478,11 @@ lval ma(lval * f, int n, ...) {
     lval * m;
     va_start(v, n);
     m = cm0(n + 2, f);
-    *m = n << 8;
-    for (i = -1; i < n; i++) {
-        m[2 + i] = va_arg(v, lval);
+    m[0] = n << 8;
+    for (i = 0; i <= n; i++) {
+        m[1 + i] = va_arg(v, lval);
     }
+    va_end(v);
     return a2o(m);
 }
 
@@ -597,7 +598,7 @@ lval evca(lval * f, lval co) {
 /* Core lisp functions */
 
 lval lprint(lval * f) {
-    printval(f[1], stdout);
+    fprint_lval(f[1], stdout);
     return f[1];
 }
 
@@ -662,13 +663,22 @@ static void print_sample_cons(lval * f) {
     
     c = l2(f, l2(f, LVAL_NIL, ANUM_AS_LVAL(3)), l2(f, ANUM_AS_LVAL(5), LVAL_NIL));
     fprintf(stdout, "c =\n");
-    printval(c, stdout);
+    fprint_lval(c, stdout);
     fprintf(stdout, "\n\n");
 }
 
+static void dbg_printval(lval * f, const char * valname, lval val) {
+    fprintf(stdout, "%s = ", valname);
+    fprint_lval(val, stdout);
+    fputc('\n', stdout);
+}
+
 static void print_something(lval * f) {
-    printval(ec->pkg, stdout);
-    fprintf(stdout, "\n");
+    dbg_printval(f, "test", strf(f, "test"));
+    
+    
+    //printval(ec->pkg, stdout);
+    //fprintf(stdout, "\n");
 }
 
 #endif /* End of debug stuff */
@@ -695,7 +705,7 @@ int main(int argc, char * argv[]) {
         print_something(f);
     }
 #endif
-    print_sample_cons(f);
+    print_something(f);
     
     free_exec_context(&ctx);
     return 0;

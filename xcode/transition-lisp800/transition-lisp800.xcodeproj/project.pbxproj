@@ -60,10 +60,18 @@
 		FA0CEAAD1746AA7600F6951A /* transition-lisp800 */ = {
 			isa = PBXGroup;
 			children = (
-				FA0CEAB71746AA9200F6951A /* core.c */,
+				FA0CEAB91747948E00F6951A /* c */,
 				FA0CEAB01746AA7600F6951A /* transition_lisp800.1 */,
 			);
 			path = "transition-lisp800";
+			sourceTree = "<group>";
+		};
+		FA0CEAB91747948E00F6951A /* c */ = {
+			isa = PBXGroup;
+			children = (
+				FA0CEAB71746AA9200F6951A /* core.c */,
+			);
+			name = c;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
