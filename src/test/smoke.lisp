@@ -12,6 +12,10 @@
 (is eq 1 1)
 (is equal (list 1 'a 'b) (cons 1 '(a b)))
 
+(is eq 2 (if nil 1 2))
+
+(is eq t (keywordp :k))
+
 (is eq 10 (if t 10 20))
 
 (is eq t (stringp "abc"))

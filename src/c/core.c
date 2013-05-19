@@ -494,7 +494,7 @@ lval ma(lval * f, size_t n, ...) {
  * Allocates jref
  */
 lval * ms0(lval * f, size_t n) {
-    lval * m = cm0(n / sizeof(lval) + 3, f);
+    lval * m = cm0((n + 3 * sizeof(lval)) / sizeof(lval), f);
     *m = (n + sizeof(lval)) << LVAL_JREF_SIZE_BIT_SHIFT;
     return m;
 }
@@ -511,7 +511,7 @@ lval cons(lval * f, lval a, lval b) {
 }
 
 /**
- * Allocates ordinary lis
+ * Allocates ordinary list
  */
 lval l2(lval * f, lval a, lval b) {
     return cons(f, a, cons(f, b, LVAL_NIL));
@@ -625,7 +625,7 @@ lval evca(lval * f, lval co) {
 
     if (cp(ex)) {
         lval fn = 8;
-        if (ap(car(ex)) && o2a(car(ex))[1] == 20) {
+        if (ap(car(ex)) && o2a(car(ex))[1] == LVAL_IREF_SYMBOL_SUBTYPE) {
             int i = o2a(car(ex))[7] >> 3;
             if (i > 11 && i < 34)
                 return symi[i].fun(f, cdr(ex));
@@ -648,7 +648,7 @@ lval evca(lval * f, lval co) {
         }
         ex = cdr(ex);
         ex = call(f, fn, map_eval(f, ex));
-    } else if (ap(ex) && o2a(ex)[1] == 20) {
+    } else if (ap(ex) && o2a(ex)[1] == LVAL_IREF_SYMBOL_SUBTYPE) {
         ex = *binding(f, ex, 0, &m);
         if (m) {
             x = ex;
