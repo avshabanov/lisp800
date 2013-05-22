@@ -191,10 +191,10 @@ void gcm(lval v) {
 
 lval gc(lval * f) {
     int i;
-    lval *m;
+    lval * m;
     int l;
     int u = 0;
-    int ml;
+    int ml = 0;
     printf(";garbage collecting...\n");
     while (memf) {
         lval *n = (lval *) memf[0];
@@ -1429,19 +1429,69 @@ lval lexit(lval * f) {
     return 0;
 }
 
+lval linspect(lval * f) {
+    lval x = f[1];
+    printf(";; type: ");
+    switch (x & 3) {
+    case 0:
+	if (x == 0) {
+	    printf("nil");
+	} else if (x & 8) {
+	    printf("char");
+	} else {
+	    printf("fixnum");
+	}
+	break;
+    case 1:
+	printf("cons");
+	break;
+    case 2:
+	switch (o2a(x)[1]) {
+	case 212:
+	    printf("function");
+	    break;
+	case 20:
+	    printf("symbol");
+	    break;
+	case 116:
+	    printf("array");
+	    break;
+	case 180:
+	    printf("package");
+	    break;
+	default:
+	    printf("iref(%d)", o2a(x)[1]);
+	}
+	break;
+    case 3:
+	switch (o2s(x)[1]) {
+	case 20:
+	    printf("simple-string");
+	    break;
+	case 84:
+	    printf("double");
+	    break;
+	}
+    }
+    printf("\n");
+    return 0;
+}
+
 int ep(lval * g, lval expr) {
     int i;
     lval v = rvalues(g, eval(g, expr));
-    if (car(v) == 8)
+    if (car(v) == 8) {
         return 0;
-    if (v)
+    }
+    if (v) {
         for (i = 0; v; v = cdr(v)) {
             printf(";%d: ", i++);
             print(car(v));
             printf("\n");
         }
-    else
+    } else {
         printf(";no values\n");
+    }
     return 1;
 }
 
@@ -1568,6 +1618,18 @@ int getnws() {
     int c;
     do {
         c = getc(ins);
+	if (c == ';') {
+	    c = getc(ins);
+	    if (c == ';') {
+		/* skip to the newline or EOF */
+		do {
+		    c = getc(ins);
+		} while (c != '\n' && c != '\r' && c != EOF);
+		continue;
+	    }
+	    ungetc(c, ins);
+	    break;
+	}
     } while (isspace(c));
     return c;
 }
@@ -1598,13 +1660,14 @@ lval read_string_list(lval * g) {
 }
 
 unsigned hash(lval s) {
-    unsigned char *z = o2z(s);
+    unsigned char * z = (unsigned char *) o2z(s);
     unsigned i = 0, h = 0, g;
     while (i < o2s(s)[0] / 64 - 4) {
         h = (h << 4) + z[i++];
         g = h & 0xf0000000;
-        if (g)
+        if (g) {
             h = h ^ (g >> 24) ^ g;
+	}
     }
     return h;
 }
@@ -1613,7 +1676,7 @@ lval lhash(lval * f) {
     return d2o(f, hash(f[1]));
 }
 
-lval is(lval * g, lval p, lval s) {
+lval make_symbol(lval * g, lval p, lval s) {
     int h = hash(s) % 1021;
     int i = 3;
     lval m;
@@ -1638,11 +1701,14 @@ lval is(lval * g, lval p, lval s) {
 lval read_symbol(lval * g) {
     int c = getc(ins);
     if (isspace(c) || c == ')' || c == EOF) {
-        if (c != EOF)
+        if (c != EOF) {
             ungetc(c, ins);
+	}
         return 0;
-    } if (c > 96 && c < 123)
+    } 
+    if (c > 96 && c < 123) {
         c -= 32;
+    }
     return cons(g, (c << 5) | 24, read_symbol(g));
 }
 
@@ -1652,8 +1718,9 @@ lval list2(lval * g, int a) {
 
 lval lread(lval * g) {
     int c = getnws();
-    if (c == EOF)
+    if (c == EOF) {
         return 8;
+    }
     if (c == '(')
         return read_list(g);
     if (c == '\"')
@@ -1688,7 +1755,7 @@ lval lread(lval * g) {
     if (c == ':') {
         getnws();
     }
-    return is(g, c == ':' ? kwp : pkg, stringify(g, read_symbol(g)));
+    return make_symbol(g, c == ':' ? kwp : pkg, stringify(g, read_symbol(g)));
 }
 
 lval strf(lval * f, const char *s) {
@@ -1780,7 +1847,9 @@ struct symbol_init symi[] = {
     {"*ERROR-OUTPUT*"}, /* must be 80 */
     {"*PACKAGES*"}, {"STRING=", lstring_equal, 2},
     {"IMAKUNBOUND", limakunbound, 2}, {"EVAL", leval, -2}, {"JREF", ljref, 2, setfjref, 3},
-    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, {"EXIT", lexit, 1}, {"QUIT", lexit, 1}
+    {"RUN-PROGRAM", lrp, -2}, {"UNAME", luname, 0}, 
+    {"EXIT", lexit, 1}, {"QUIT", lexit, 1},
+    {"INSPECT", linspect, 1}
 };
 
 int main(int argc, char *argv[]) {
@@ -1799,7 +1868,7 @@ int main(int argc, char *argv[]) {
     g = stack;
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
-        sym = is(g, pkg, strf(g, symi[i].name));
+        sym = make_symbol(g, pkg, strf(g, symi[i].name));
         if (i < 10) {
             o2a(sym)[4] = sym;
         }

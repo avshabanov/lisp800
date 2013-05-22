@@ -1,8 +1,8 @@
 
-CMN     = -m32 -g
+CMN     = -m32 -g -O0
 #CMN     = -m32 -O2 -fomit-frame-pointer
 
-CFLAGS  = $(CMN) -Wall -O0
+CFLAGS  = $(CMN) -pedantic -Wall
 CC      = gcc
 LFLAGS  = $(CMN) -lm -ldl
 LINKER  = gcc

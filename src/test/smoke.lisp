@@ -1,3 +1,4 @@
+;; Test macro
 (defmacro is (eqf expected actual)
   (let ((a (gensym "a")) (b (gensym "b")))
     `(let ((,a ,expected) (,b ,actual))
