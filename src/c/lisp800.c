@@ -744,6 +744,7 @@ lval eval_function(lval * f, lval ex) {
     ex = car(ex);
     if (cp(ex)) {
         if (car(ex) == symi[75].sym) {
+            /* 75 - lambda */
             lval n = 0;
             x = cddr(ex);
             if (!cdr(x) && caar(x) == symi[23].sym) {
