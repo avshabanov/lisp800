@@ -1,3 +1,10 @@
+/**
+ * LISP 800 is a tiny lisp interpreter originally written by Teemu Kalvas
+ * for the obfuscated C code contest.
+ * Rewritten in the understandable and maintanable manner by Alexander Shabanov.
+ */
+
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -29,12 +36,136 @@
 #define countof(x) (sizeof(x)/sizeof((x)[0]))
 #endif
 
-typedef int lval;
+/* TODO: forget about windows and use stdbool? */
+typedef int lbool;
+#define L_FALSE (0)
+#define L_TRUE (1)
 
-lval *o2c(lval o) {
+/**
+ * Integer type, compatible with lval type. All the resultant integers
+ * should be placed into this type to avoid overflow error.
+ */
+typedef intptr_t lint;
+
+/**
+ * Main lvalue representation.
+ * </p>
+ * First two bits represents a value type.
+ * </p>
+ * Note, that pointer types (e.g. cons cells) - are expected to be *ALWAYS*
+ * aligned at least by 4, since the trailing bits are used to represent type
+ * information and considered to always be zero.
+ * This seems to not be a problem for all the modern unix.
+ * </p>
+ * Zero value is reinterpreted as nil.
+ *
+ * @see #LVAL_TYPE_MASK
+ * @see #LVAL_ANUM_TYPE
+ * @see #LVAL_CONS_TYPE
+ * @see #LVAL_IREF_TYPE
+ * @see #LVAL_JREF_TYPE
+ */
+typedef lint lval;
+
+
+/**
+ * Value that represents lval's nil
+ */
+#define LVAL_NIL            ((lval) 0)
+
+/**
+ * Represents bit mask that should be applied to lval to extract type info.
+ * Changing this to the different value will have immediate impact on all the
+ * bitwise type operations.
+ */
+#define LVAL_TYPE_MASK      (3)
+
+
+/**
+ * Extracts lval type (first two bits)
+ */
+#define LVAL_GET_TYPE(l) ((l) & LVAL_TYPE_MASK)
+
+/**
+ * Simple objects written as is into the lval.
+ */
+#define LVAL_INLINE_TYPE    (0)
+
+
+/**
+ * Cons cell
+ */
+#define LVAL_CONS_TYPE      (1)
+
+/**
+ * IREF objects.
+ * Sub types: symbol, simple-vector, array, package, function
+ */
+#define LVAL_IREF_TYPE      (2)
+
+/**
+ * JREF objects.
+ * Sub types: simple-string, double, simple-bit-vector, file-stream
+ */
+#define LVAL_JREF_TYPE      (3)
+
+
+
+/**
+ * JREF objects.
+ * Sub types: simple-string, double, simple-bit-vector, file-stream
+ */
+#define LVAL_JREF_TYPE      (3)
+
+/**
+ * Char code bit - applicable for ANUM type
+ */
+#define LVAL_CHAR_BIT       (8)
+
+/* Int conversion to/from lval */
+#define LVAL_AS_INT(l)      ((l) >> 5)
+#define INT_AS_LVAL(l)      ((l) << 5)
+
+
+
+/**
+ * GC marker bit
+ *
+ * @see #gcm
+ * @see #gc
+ */
+#define LVAL_GCM_BIT        (4)
+
+
+/* Subtype codes */
+
+#define LVAL_IREF_FUNCTION_SUBTYPE              (212)
+#define LVAL_IREF_SYMBOL_SUBTYPE                (20)
+#define LVAL_IREF_SIMPLE_VECTOR_SUBTYPE         (116)
+#define LVAL_IREF_PACKAGE_SUBTYPE               (180)
+
+#define LVAL_JREF_SIMPLE_STRING_SUBTYPE         (20)
+#define LVAL_JREF_DOUBLE_SUBTYPE                (84)
+#define LVAL_JREF_BIT_VECTOR_SUBTYPE            (116)
+
+#define LVAL_JREF_SIZE_BIT_SHIFT                (6)
+
+#define LVAL_IREF_SIZE_BIT_SHIFT                (8)
+
+
+/**
+ * Interprets lval object as cons, this function is for cons'es only
+ * @see #LVAL_CONS_TYPE
+ */
+lval * o2c(lval o) {
+    assert(LVAL_GET_TYPE(o) == LVAL_CONS_TYPE);
     return (lval *) (o - 1);
 }
 
+/**
+ * Interprets cons as object, this function is for cons'es only
+ * @see #LVAL_CONS_TYPE
+ */
 lval c2o(lval * c) {
     return (lval) c + 1;
 }
@@ -82,6 +213,7 @@ struct symbol_init {
 
 extern struct symbol_init symi[];
 
+/* TODO: use saved value instead */
 #define TRUE symi[1].sym
 #define T g[-2]
 #define U g[-3]
@@ -92,11 +224,11 @@ extern struct symbol_init symi[];
 #define NE *g
 
 lval car(lval c) {
-    return (c & 3) == 1 ? o2c(c)[0] : 0;
+    return (c & 3) == 1 ? o2c(c)[0] : LVAL_NIL;
 }
 
 lval cdr(lval c) {
-    return (c & 3) == 1 ? o2c(c)[1] : 0;
+    return (c & 3) == 1 ? o2c(c)[1] : LVAL_NIL;
 }
 
 lval caar(lval c) {
@@ -109,19 +241,13 @@ lval cdar(lval c) {
     return cdr(car(c));
 }
 
-lval evca(lval *, lval);
-
 lval cadr(lval c) {
     return car(cdr(c));
 }
 
-int dbgr(lval *, int, lval, lval *);
-
 lval cddr(lval c) {
     return cdr(cdr(c));
 }
-
-void print(lval);
 
 lval set_car(lval c, lval val) {
     return o2c(c)[0] = val;
@@ -131,7 +257,13 @@ lval set_cdr(lval c, lval val) {
     return o2c(c)[1] = val;
 }
 
-lval *binding(lval * f, lval sym, int type, int *macro) {
+lval evca(lval *, lval);
+
+int dbgr(lval *, int, lval, lval *);
+
+void print(lval);
+
+lval * binding(lval * f, lval sym, int type, int *macro) {
     lval env;
     st:
     for (env = E; env; env = cdr(env)) {
@@ -153,10 +285,10 @@ lval *binding(lval * f, lval sym, int type, int *macro) {
     return o2a(sym) + sizeof(lval) + type;
 }
 
-lval *memory;
-lval *memf;
+lval * memory;
+lval * memf;
 int memory_size;
-lval *stack;
+lval * stack;
 lval xvalues = 8;
 lval dyns = 0;
 jmp_buf top_jmp;
