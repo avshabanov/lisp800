@@ -415,6 +415,7 @@ lval * m0(int n) {
 
 /**
  * Allocates n lval units, applies gcm to the mgc lvals in variadic params.
+ * Never returns NULL.
  */
 lval * cm0(lval * g, int n) {
     lval * m;
@@ -434,15 +435,21 @@ lval * cm0(lval * g, int n) {
     return m;
 }
 
+/**
+ * Allocates iref
+ */
 lval * ma0(lval * g, int n) {
     lval * m = cm0(g, n + 2);
-    *m = n << 8;
+    *m = n << LVAL_IREF_SIZE_BIT_SHIFT;
     return m;
 }
 
+/**
+ * Allocates jref
+ */
 lval * ms0(lval * g, int n) {
     lval * m = cm0(g, n / sizeof(lval) + 3);
-    *m = (n + 4) << 6;
+    *m = (n + sizeof(lval)) << LVAL_JREF_SIZE_BIT_SHIFT;
     return m;
 }
 
@@ -503,6 +510,10 @@ unsigned o2u(lval o) {
     return (unsigned) o2d(o);
 }
 
+/**
+ * Creates cons cell of a and b.
+ * Stack pointer f is used for garbage collecting.
+ */
 lval cons(lval * g, lval a, lval d) {
     lval *c = m0(2);
     if (!c) {
