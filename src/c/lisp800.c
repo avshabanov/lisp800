@@ -376,16 +376,26 @@ lval gc(lval * f) {
     return 0;
 }
 
+/**
+ * Allocates n lval units in the context memory and returns it.
+ * Returns NULL if no free cells available.
+ * The caller party may use n lval blocks if the returned pointer is not null.
+ */
 lval * m0(int n) {
-    lval * m = memf;
-    lval * p = 0;
-    n = (n + 1) & ~1;
+    lval * m = memf; /* start searching from the first memory sub block */
+    lval * p = 0; /* previous memory sub block */
+
+    n = (n + 1) & ~1; /* round odd size to the greater even */
+
+    /* iterate over the available sub blocks */
     for (; m; m = (lval *) m[0]) {
         if (n <= m[1]) {
+            /* size requested fits into the current sub block */
             if (m[1] == n) {
                 if (p) {
                     p[0] = m[0];
                 } else {
+                    /* allocate the entire sub block, but update memf pointer */
                     memf = (lval *) m[0];
                 }
             } else {
@@ -394,9 +404,11 @@ lval * m0(int n) {
             }
             return m;
         }
+
         p = m;
     }
-    return 0;
+
+    return NULL;
 }
 
 #define GC_MAX_RETRY    (3)
