@@ -1,7 +1,7 @@
 /**
  * LISP 800 is a tiny lisp interpreter originally written by Teemu Kalvas
  * for the obfuscated C code contest.
- * Rewritten in the understandable and maintanable manner by Alexander Shabanov.
+ * This is an attempt to rewrite it in the understandable manner.
  */
 
 #include <assert.h>
@@ -175,31 +175,33 @@ int cp(lval o) {
 }
 
 lval *o2a(lval o) {
-    return (lval *) (o - 2);
+    assert(LVAL_GET_TYPE(o) == LVAL_IREF_TYPE);
+    return (lval *) (o - LVAL_IREF_TYPE);
 }
 
 lval a2o(lval * a) {
-    return (lval) a + 2;
+    return (lval) a + LVAL_IREF_TYPE;
 }
 
 int ap(lval o) {
-    return (o & 3) == 2;
+    return (o & LVAL_TYPE_MASK) == LVAL_IREF_TYPE;
 }
 
 lval *o2s(lval o) {
+    assert(LVAL_GET_TYPE(o) == LVAL_JREF_TYPE);
     return (lval *) (o - 3);
 }
 
 char *o2z(lval o) {
-    return (char *) (o - 3 + 2 * sizeof(lval));
+    return (char *) (o - LVAL_JREF_TYPE + 2 * sizeof(lval));
 }
 
 lval s2o(lval * s) {
-    return (lval) s + 3;
+    return (lval) s + LVAL_JREF_TYPE;
 }
 
 int sp(lval o) {
-    return (o & 3) == 3;
+    return (o & LVAL_TYPE_MASK) == LVAL_JREF_TYPE;
 }
 
 struct symbol_init {
@@ -2021,7 +2023,7 @@ int main(int argc, char *argv[]) {
     memf[1] = memory_size / sizeof(lval);
     stack = malloc(stack_size);
     memset(stack, 0, stack_size);
-    g = stack;
+    g = stack + 5; /* TODO: constants for stack management */
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
         sym = make_symbol(g, pkg, strf(g, symi[i].name));
