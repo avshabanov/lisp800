@@ -628,11 +628,13 @@ lval args(lval * f, lval m, int c) {
                 break;
             case -2:
                 n = argi(n, &k);
-                for (l = g; l < h - 1; l += 2)
+                for (l = g; l < h - 1; l += 2) {
                     if (string_equal(o2a(n)[2], o2a(*l)[2]) && o2a(*l)[9] == kwp) {
                         k = l[1];
                         break;
-                    } *h = argd(h, n, l < h - 1 ? k : evca(h, k));
+                    }
+		}
+		*h = argd(h, n, l < h - 1 ? k : evca(h, k));
                 continue;
             case 4:
                 *h = cons(h, cons(h, n, rest(h - 1, f + 1)), *h);
@@ -643,7 +645,8 @@ lval args(lval * f, lval m, int c) {
                 t = 0;
                 continue;
             }
-        } g++;
+        }
+	g++;
     }
     if (m) {
         return cons(h, cons(h, m, rest(h - 1, g)), *h);
@@ -965,7 +968,8 @@ lval eval_go(lval * f, lval ex) {
     if (o2s(cdr(b))[2]) {
         unwind(f, car(b));
         longjmp(*(jmp_buf *) (o2s(cdr(b))[2]), car(ex));
-    } dbgr(f, 9, car(ex), &ex);
+    }
+    dbgr(f, 9, car(ex), &ex);
     longjmp(top_jmp, 1);
 }
 
@@ -1075,17 +1079,17 @@ lval eval_multiple_value_prog1(lval * f, lval ex) {
 }
 
 lval eval_declare(lval * f, lval ex) {
-    return 0;
+    return LVAL_NIL;
 }
 
 lval l2(lval * f, lval a, lval b) {
-    return cons(f, a, cons(f, b, 0));
+    return cons(f, a, cons(f, b, LVAL_NIL));
 }
 
 lval eval_setf(lval * f, lval ex) {
     lval r;
     int m;
-    NF(1) T = 0;
+    NF(1) T = LVAL_NIL;
 
     ag:
     if (!cp(car(ex))) {
@@ -2027,7 +2031,9 @@ int main(int argc, char *argv[]) {
     pkg = mkp(g, "CL", "COMMON-LISP");
     for (i = 0; i < countof(symi); i++) {
         sym = make_symbol(g, pkg, strf(g, symi[i].name));
-        if (i < 10) {
+        if (i == 0) {
+	    o2a(sym)[4] = LVAL_NIL;
+	} else if (i < 10) {
             o2a(sym)[4] = sym;
         }
         ins = stdin;
