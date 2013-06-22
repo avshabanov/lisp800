@@ -22,6 +22,9 @@
 (is eq t (stringp "abc"))
 (is equal (subseq "abc" 1) "bc")
 
+(is eq 1 (if t 1 2))
+(is eq 2 (if nil 1 2))
+
 (defun accum (r) (if (= 0 r) (list 0) (cons r (accum (- r 1)))))
 (is equal (list 4 3 2 1 0) (accum 4))
 
