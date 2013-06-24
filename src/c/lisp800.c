@@ -1591,51 +1591,69 @@ lval lexit(lval * f) {
     return 0;
 }
 
+static void print_with_desc(const char * what, lval v) {
+    printf("; %s ", what);
+    if (v != 8) {
+	print(v);
+    } else {
+	printf("<UNBOUND>");
+    }
+    printf("\n");
+}
+
 lval linspect(lval * f) {
     lval x = f[1];
-    printf(";; type: ");
+    printf(";; The object is a ");
     switch (x & 3) {
     case 0:
 	if (x == 0) {
-	    printf("nil");
+	    printf("NIL");
 	} else if (x & 8) {
-	    printf("char");
+	    printf("CHAR");
 	} else {
-	    printf("fixnum");
+	    printf("FIXNUM");
 	}
 	break;
     case 1:
-	printf("cons");
+	printf("CONS");
 	break;
     case 2:
 	switch (o2a(x)[1]) {
 	case 212:
-	    printf("function");
+	    printf("FUNCTION");
 	    break;
 	case 20:
-	    printf("symbol");
+	    printf("SYMBOL");
 	    break;
 	case 116:
-	    printf("array");
+	    printf("ARRAY");
 	    break;
 	case 180:
-	    printf("package");
+	    printf("PACKAGE");
 	    break;
 	default:
-	    printf("iref(%d)", o2a(x)[1]);
+	    printf("UNKNOWN-IREF(%d)", o2a(x)[1]);
 	}
 	break;
     case 3:
 	switch (o2s(x)[1]) {
 	case 20:
-	    printf("simple-string");
+	    printf("SIMPLE-STRING");
 	    break;
 	case 84:
-	    printf("double");
+	    printf("DOUBLE");
 	    break;
 	}
     }
-    printf("\n");
+    printf(".\n");
+    if ((x & 3) == 2 && o2a(x)[1] == 20) {
+	/* symbol extra info */
+	print_with_desc("Name is", o2a(x)[2]);
+	print_with_desc("Package is", o2a(x)[9]);
+	print_with_desc("Value is", o2a(x)[4]);
+	print_with_desc("Function is", o2a(x)[5]);
+	print_with_desc("Macro is ", o2a(x)[6]);
+    }
     return 0;
 }
 
